@@ -1,0 +1,17 @@
+{application, gitd,
+ [{description, "git server"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {gitd_app, []}},
+  {applications,
+   [kernel,
+    stdlib,
+    gproc,
+    ssh
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {licenses, ["Apache 2.0"]},
+  {links, []}
+ ]}.
