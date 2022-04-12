@@ -1,4 +1,4 @@
--module(gitd_ssh_ch).
+-module(srcd_ssh_ch).
 -behaviour(ssh_server_channel). % replaces ssh_daemon_channel
 -record(state, {
 	  n,

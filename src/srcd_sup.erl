@@ -1,9 +1,9 @@
 %%%-------------------------------------------------------------------
-%% @doc gitd top level supervisor.
+%% @doc srcd top level supervisor.
 %% @end
 %%%-------------------------------------------------------------------
 
--module(gitd_sup).
+-module(srcd_sup).
 
 -behaviour(supervisor).
 
@@ -23,11 +23,11 @@ init([]) ->
     ChildSpecs = [
       #{
         id => sshd,
-	start => {gitd_ssh, start_link, []}
+	start => {srcd_ssh, start_link, []}
       },
       #{
         id => sample_repo,
-	start => {gitd_repo, start_link, ["/asd"]}
+	start => {srcd_repo, start_link, ["/asd"]}
       }
     ],
     {ok, {SupFlags, ChildSpecs}}.

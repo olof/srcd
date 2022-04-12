@@ -1,11 +1,11 @@
--module(gitd_upload_pack).
+-module(srcd_upload_pack).
 -export([init/2]).
 -export([caps/0, advertise/1]).
 
 -include_lib("kernel/include/logger.hrl").
 -record(?MODULE, {repo, opts=[], version=0}).
 
-caps() -> gitd_ssh:caps() ++ [].
+caps() -> srcd_ssh:caps() ++ [].
 
 init(Args, #{version := Version}) ->
   ?LOG_NOTICE("init upload-pack"),
@@ -14,10 +14,10 @@ init(Args, #{version := Version}) ->
 
 advertise(#?MODULE{repo=Repo, version=Version, opts=Opts} = Data) ->
   ?LOG_NOTICE("Advertise upload-pack"),
-  case gitd_repo:refs(Repo) of
+  case srcd_repo:refs(Repo) of
     {ok, Refs} ->
       ?LOG_NOTICE("ogt some refs"),
-      {ok, Adv} = gitd_pack:advertisement(Version, Refs, caps()),
+      {ok, Adv} = srcd_pack:advertisement(Version, Refs, caps()),
       case proplists:get_value(advertise_refs, Opts) of
         true -> {ok, Adv};
         _ -> {next_state, wait_for_input, Adv, Data}

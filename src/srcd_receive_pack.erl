@@ -1,4 +1,4 @@
--module(gitd_receive_pack).
+-module(srcd_receive_pack).
 -export([callback_mode/0, init/2]).
 -export([advertise/1, wait_for_cmd/1, process_line/1]).
 -include_lib("kernel/include/logger.hrl").
@@ -7,7 +7,7 @@
 
 callback_mode() -> state_functions.
 
-caps() -> gitd_ssh:caps() ++ [].
+caps() -> srcd_ssh:caps() ++ [].
 
 init([Repo], #{version := Version}) ->
   {ok, advertise, #?MODULE{repo=Repo, version=Version}}.
@@ -38,13 +38,13 @@ process_line(Data) ->
   not_implemented.
 
 advertisement(Repo, Version) ->
-  Refs = case gitd_repo:refs(Repo) of
+  Refs = case srcd_repo:refs(Repo) of
     {ok, []} ->
       [
         {"capabilities^{}", "0000000000000000000000000000000000000000"}
       ];
     {ok, Refs0} ->
-      {ok, Head} = gitd_repo:default_branch(Repo),
+      {ok, Head} = srcd_repo:default_branch(Repo),
       case proplists:get_value(Head, Refs0) of
         undefined -> Refs0;
         Commit -> [{"HEAD", Commit} | Refs0]
@@ -53,5 +53,5 @@ advertisement(Repo, Version) ->
   end,
   case Refs of
     {error, Err} -> {error, Err};
-    Refs -> gitd_pack:advertisement(Version, Refs, caps())
+    Refs -> srcd_pack:advertisement(Version, Refs, caps())
   end.

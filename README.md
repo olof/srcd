@@ -1,5 +1,5 @@
-erlgitd
-=====
+srcd
+====
 
 An OTP application
 

@@ -1,4 +1,4 @@
--module(gitd_ssh).
+-module(srcd_ssh).
 -behaviour(gen_server).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, terminate/2]).
 -export([caps/0]).
@@ -20,18 +20,18 @@ start_link() ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 init([]) ->
-  Settings = application:get_env(gitd, sshd, []),
+  Settings = application:get_env(srcd, sshd, []),
   Host = proplists:get_value(host, Settings, any),
   Port = proplists:get_value(port, Settings, 22),
   Dir = proplists:get_value(keydir, Settings, []),
-  Fun = fun (Cmd, User, Addr, Env) -> gitd_cmd:exec(Cmd, env_to_opts(Env)) end,
+  Fun = fun (Cmd, User, Addr, Env) -> srcd_cmd:exec(Cmd, env_to_opts(Env)) end,
 
   Opts = lists:concat([
     [
       {system_dir, Dir},
-      {key_cb, {gitd_ssh_keys, []}},
+      {key_cb, {srcd_ssh_keys, []}},
       {shell, disabled},
-      {subsystems, [{"test", {gitd_ssh_ch, [10]}}]},
+      {subsystems, [{"test", {srcd_ssh_ch, [10]}}]},
       {exec, {direct, Fun}},
       {auth_methods, "publickey"}
     ],

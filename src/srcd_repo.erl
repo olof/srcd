@@ -1,4 +1,4 @@
--module(gitd_repo).
+-module(srcd_repo).
 -behaviour(gen_server).
 -export([d/0, start_link/1, init/1, handle_call/3, handle_cast/2]).
 -export([exists/1, head/1, head/2, refs/1, default_branch/1]).

@@ -1,16 +1,16 @@
 %%%-------------------------------------------------------------------
-%% @doc gitd public API
+%% @doc srcd public API
 %% @end
 %%%-------------------------------------------------------------------
 
--module(gitd_app).
+-module(srcd_app).
 
 -behaviour(application).
 
 -export([start/2, stop/1]).
 
 start(_StartType, _StartArgs) ->
-    gitd_sup:start_link().
+    srcd_sup:start_link().
 
 stop(_State) ->
     ok.

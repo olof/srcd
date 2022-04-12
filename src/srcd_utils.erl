@@ -1,4 +1,4 @@
--module(gitd_utils).
+-module(srcd_utils).
 
 -export([cmd_split/1]).
 

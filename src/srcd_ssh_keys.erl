@@ -1,4 +1,4 @@
--module(gitd_ssh_keys).
+-module(srcd_ssh_keys).
 -behaviour(ssh_server_key_api).
 -export([host_key/2, is_auth_key/3]).
 

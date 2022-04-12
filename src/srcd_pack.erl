@@ -1,4 +1,4 @@
--module(gitd_pack).
+-module(srcd_pack).
 -export([advertisement/3]).
 
 -include_lib("kernel/include/logger.hrl").

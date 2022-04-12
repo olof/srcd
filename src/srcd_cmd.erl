@@ -1,9 +1,9 @@
--module(gitd_cmd).
+-module(srcd_cmd).
 -export([exec/2]).
 -include_lib("kernel/include/logger.hrl").
 
-cmd_module("git-receive-pack") -> gitd_receive_pack;
-cmd_module("git-upload-pack") -> gitd_upload_pack;
+cmd_module("git-receive-pack") -> srcd_receive_pack;
+cmd_module("git-upload-pack") -> srcd_upload_pack;
 cmd_module(_) -> invalid.
 
 exec(Cmd, Env) ->
@@ -37,7 +37,7 @@ step_fsm(Mod, State, Data) ->
   end.
 
 parse(Cmdline) ->
-  case gitd_utils:cmd_split(Cmdline) of
+  case srcd_utils:cmd_split(Cmdline) of
     {ok, [Cmd | Args]} -> {ok, Cmd, Args};
     invalid -> {error, invalid}
   end.
