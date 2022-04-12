@@ -16,25 +16,18 @@
 start_link() ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, []).
 
-%% sup_flags() = #{strategy => strategy(),         % optional
-%%                 intensity => non_neg_integer(), % optional
-%%                 period => pos_integer()}        % optional
-%% child_spec() = #{id => child_id(),       % mandatory
-%%                  start => mfargs(),      % mandatory
-%%                  restart => restart(),   % optional
-%%                  shutdown => shutdown(), % optional
-%%                  type => worker(),       % optional
-%%                  modules => modules()}   % optional
 init([]) ->
-    SupFlags = #{strategy => one_for_all,
+    SupFlags = #{strategy => one_for_one,
                  intensity => 0,
                  period => 1},
     ChildSpecs = [
       #{
         id => sshd,
 	start => {gitd_ssh, start_link, []}
+      },
+      #{
+        id => sample_repo,
+	start => {gitd_repo, start_link, ["/asd"]}
       }
     ],
     {ok, {SupFlags, ChildSpecs}}.
-
-%% internal functions

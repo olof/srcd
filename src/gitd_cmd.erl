@@ -1,18 +1,43 @@
 -module(gitd_cmd).
--export([parse/1]).
+-export([exec/2]).
+-include_lib("kernel/include/logger.hrl").
+
+cmd_module("git-receive-pack") -> gitd_receive_pack;
+cmd_module("git-upload-pack") -> gitd_upload_pack;
+cmd_module(_) -> invalid.
+
+exec(Cmd, Env) ->
+  ?LOG_NOTICE("ENV = ~p", [Env]),
+  case parse(Cmd) of
+    {ok, Prog, Args} ->
+      case cmd_module(Prog) of
+        invalid -> {error, invalid_cmd};
+        Mod -> enter_fsm(Mod, Args, Env)
+      end;
+    {error, invalid} -> {error, invalid_cmd}
+  end.
+
+enter_fsm(Mod, Args, Env) ->
+  ?LOG_NOTICE("initial ~p:~p (~p)", [Mod, Args, Env]),
+  case Mod:init(Args, Env) of
+    {ok, State, Data} -> step_fsm(Mod, State, Data);
+    {error, Reason} -> {error, Reason}
+  end.
+
+step_fsm(Mod, State, Data) ->
+  ?LOG_NOTICE("step ~p:~p (~p)", [Mod, State, Data]),
+  case Mod:State(Data) of
+    {next_state, NewState, NewData} -> step_fsm(Mod, NewState, NewData);
+    {next_state, NewState, Output, NewData} ->
+      io:put_chars(Output),
+      step_fsm(Mod, NewState, NewData);
+    ok -> {ok, ""};
+    {ok, Res} -> {ok, Res};
+    {error, Reason} -> {error, Reason}
+  end.
 
 parse(Cmdline) ->
   case gitd_utils:cmd_split(Cmdline) of
-    {ok, [Cmd | Args]} -> {ok, Cmd, parse_cmd_args(Cmd, Args)};
+    {ok, [Cmd | Args]} -> {ok, Cmd, Args};
     invalid -> {error, invalid}
   end.
-
-parse_cmd_args("git-receive-pack", [Repo]) -> [{repo, Repo}];
-parse_cmd_args("git-upload-pack" = Cmd, Args) -> parse_cmd_args(Cmd, Args, []).
-parse_cmd_args("git-upload-pack", [Repo], Res) -> [{repo, Repo} | Res];
-parse_cmd_args("git-upload-pack" = Cmd, ["--strict"|Args], Res) ->
-  parse_cmd_args(Cmd, Args, [strict | Res]);
-parse_cmd_args("git-upload-pack" = Cmd, ["--stateless-rpc"|Args], Res) ->
-  parse_cmd_args(Cmd, Args, [stateless_rpc | Res]);
-parse_cmd_args("git-upload-pack" = Cmd, ["--advertise-refs"|Args], Res) ->
-  parse_cmd_args(Cmd, Args, [advertise_refs | Res]).
