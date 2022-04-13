@@ -26,8 +26,15 @@ init([]) ->
 	start => {srcd_ssh, start_link, []}
       },
       #{
-        id => sample_repo,
+        id => sample_empty_repo,
 	start => {srcd_repo, start_link, ["/asd"]}
+      },
+      #{
+        id => sample_repo,
+	start => {srcd_repo, start_link, ["/foo", [
+          {"refs/heads/master", "de362a47d3ac19eaa8fa5759f653ba430447d371"},
+          {"refs/misc/dud", "de362a47d3ac19eaa8fa5759f653ba430447d371"}
+	]]}
       }
     ],
     {ok, {SupFlags, ChildSpecs}}.

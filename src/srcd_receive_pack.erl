@@ -9,7 +9,7 @@ callback_mode() -> state_functions.
 
 caps() -> srcd_ssh:caps() ++ [].
 
-init([Repo], #{version := Version}) ->
+init(Version, [Repo]) ->
   {ok, advertise, #?MODULE{repo=Repo, version=Version}}.
 
 advertise(#?MODULE{repo=Repo, version=Version} = Data) ->

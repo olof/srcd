@@ -1,13 +1,19 @@
 -module(srcd_upload_pack).
 -export([init/2, caps/0]).
--export([advertise/1, handshake/1, wait_for_cmd/1, process_cmd/1, ls_refs/1]).
+-export([
+  advertise/1,
+  handshake/1,
+  read_command/1,
+  process_command/1,
+  ls_refs/1
+]).
 
 -include_lib("kernel/include/logger.hrl").
 -record(?MODULE, {repo, opts=[], version=0}).
 
 caps() -> srcd_ssh:caps() ++ [].
 
-init(Args, #{version := Version}) ->
+init(Version, Args) ->
   {ok, {Repo, Opts}} = parse_args(Args),
   Data = #?MODULE{repo=Repo, version=Version, opts=Opts},
   case Version of
@@ -23,7 +29,7 @@ handshake(Data) ->
     "object-format=sha1\n",
     flush
   ]),
-  {next_state, wait_for_cmd, Greeting, Data}.
+  {next_state, read_command, Greeting, Data}.
 
 advertise(#?MODULE{repo=Repo, version=Version, opts=Opts} = Data) ->
   case srcd_repo:refs(Repo) of
@@ -31,35 +37,64 @@ advertise(#?MODULE{repo=Repo, version=Version, opts=Opts} = Data) ->
       {ok, Adv} = srcd_pack:advertisement(Version, Refs, caps()),
       case proplists:get_value(advertise_refs, Opts) of
         true -> {ok, Adv};
-        _ -> {next_state, wait_for_cmd, Adv, Data}
+        _ -> {next_state, read_command, Adv, Data}
       end;
     {error, enoent} ->
       {error, "No such repo\n"}
   end.
 
-wait_for_cmd(#?MODULE{repo=Repo} = Data) ->
-  case read_command() of
+read_command(#?MODULE{repo=Repo} = Data) ->
+  case srcd_pack:read_command() of
     flush -> ok;
     {Cmd, Caps, Args} ->
       ?LOG_NOTICE("got upload-pack cmd ~p ~p (with caps: ~p)",
                   [Cmd, Args, Caps]),
-      {next_state, process_cmd, {Data, Cmd, Caps, Args}}
+      {next_state, process_command, {Data, Cmd, Caps, Args}}
   end.
 
-process_cmd({Data, Cmd, Caps, Args}) ->
-  case Cmd of
-    "ls-refs" -> {next_state, ls_refs, {Data, Caps, Args}};
-    _ -> {error, "unsupported command"}
-  end.
+process_command({Data, "ls-refs", Caps, Args}) ->
+  {next_state, ls_refs, {Data, Caps, ls_ref_args(Args)}};
+process_command({_, _, _, _}) ->
+  {error, "unsupported command"}.
+
+ls_ref_args(Args) -> ls_ref_args(Args, []).
+ls_ref_args([], Res) -> lists:reverse(Res);
+ls_ref_args([Arg|Args], Res) ->
+  [Cmd|MaybeArgArgs] = string:split(Arg, " "),
+  ls_ref_args(Args, case Cmd of
+    "peel" -> [peel|Res];
+    "symrefs" -> [symrefs|Res];
+    "ref-prefix" ->
+      [ArgArgs] = MaybeArgArgs,
+      [{prefix, ArgArgs}|Res]
+  end).
 
 ls_refs({#?MODULE{repo=Repo} = Data, Caps, Args}) ->
   case srcd_repo:refs(Repo) of
-    {ok, Refs} ->
-      {ok, Adv} = srcd_pack:advertisement(2, Refs, []),
-      {next_state, wait_for_cmd, Adv, Data};
+    {ok, []} ->
+      {ok, Adv} = srcd_pack:build_pkt([flush]),
+      ?LOG_NOTICE("Reflines = ~p", [[]]),
+      {next_state, read_command, Adv, Data};
+    {ok, Refs0} ->
+      Refs = case proplists:get_all_values(prefix, Args) of
+        []       -> Refs0;
+        Prefixes -> [{Ref, Id} ||
+                     {Ref, Id} <- Refs0, match_any_prefix(Prefixes, Ref)]
+      end,
+      Reflines = srcd_pack:reflines_with_head(Refs, Repo),
+      ?LOG_NOTICE("Reflines = ~p", [Reflines]),
+      {ok, Adv} = srcd_pack:build_pkt(Reflines ++ [flush]),
+      {next_state, read_command, Adv, Data};
     {error, enoent} ->
       {error, "No such repo"}
   end.
+
+match_any_prefix([], Term) -> false;
+match_any_prefix([Prefix|Prefixes], Term) ->
+  case string:prefix(Term, Prefix) of
+    nomatch -> match_any_prefix(Prefixes, Term);
+    _ -> true
+end.
 
 parse_args(Args) -> parse_args(Args, []).
 parse_args([Repo], Res) -> {ok, {Repo, Res}};
@@ -69,39 +104,3 @@ parse_args(["--stateless-rpc"|Args], Res) ->
   parse_args(Args, [stateless_rpc | Res]);
 parse_args(["--advertise-refs"|Args], Res) ->
   parse_args(Args, [advertise_refs | Res]).
-
-hex(Str) -> list_to_integer(Str, 16).
-read(Len) -> io:get_chars("", Len).
-read_length() -> hex(read(4)) - 4.
-
-read_command() ->
-  Len = read_length(),
-  case Len of
-    -4 -> flush;
-    Len when Len >= 0 ->
-      Input = read(Len),
-      ["command", Command] = string:split(Input, "="),
-      read_command(string:trim(Command), [], [], false)
-  end.
-read_command(Cmd, Caps, Args, DelimSeen) ->
-  Len = read_length(),
-  case Len of
-    -4 -> {Cmd, Caps, lists:reverse(Args)};
-    -3 -> read_command(Cmd, lists:reverse(Caps), Args, true);
-    Len ->
-      Input = string:trim(read(Len)),
-      if DelimSeen -> read_command(Cmd, Caps, [Input|Args], DelimSeen);
-         true      -> read_command(Cmd, [parse_cap(Input)|Caps], Args,
-	                           DelimSeen)
-      end
-  end.
-
-parse_cap(Str) ->
-  case string:split(Str, "=") of
-    [Str] -> cap_atom(Str);
-    [Key, Val] -> {cap_atom(Key), Val}
-  end.
-
-cap_atom("agent") -> agent;
-cap_atom("object-format") -> 'object-format';
-cap_atom(C) -> C.

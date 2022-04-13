@@ -1,9 +1,11 @@
 -module(srcd_pack).
--export([advertisement/3, build_pkt/1]).
+-export([advertisement/3, build_pkt/1, read_command/0]).
+-export([build_pkt/1, reflines/1, reflines_with_head/2]).
 
 -include_lib("kernel/include/logger.hrl").
 
 pkt_line(flush) -> "0000";
+pkt_line(delim) -> "0001";
 pkt_line(Line) ->
   lists:concat([io_lib:format("~4.16.0b", [length(Line) + 4]), Line]).
 
@@ -11,22 +13,23 @@ no_such_repo(Repo) ->
   ?LOG_NOTICE("requested repo ~p does not exist", [Repo]),
   {error, "no such repo\n"}.
 
-ref_val(Refs, Ref) ->
-  proplists:get_value(Ref, Refs).
+ref_val(Refs, Ref) -> proplists:get_value(Ref, Refs).
 
-refs_to_reflines(Refs) ->
+reflines_with_head(Refs, Repo) ->
+  {ok, Ref} = srcd_repo:default_branch(Repo),
+  ?LOG_NOTICE("default ref = ~p", [Ref]),
+  case proplists:get_value(Ref, Refs) of
+    undefined -> reflines(Refs);
+    Oid -> reflines([{"HEAD", Oid} | Refs])
+  end.
+reflines(Refs) ->
   [string:join([Commit, Name], " ") || {Name, Commit} <- Refs].
 
-advertisement(2, [], _) ->
-  build_pkt([flush]);
-advertisement(Version, [], _) ->
-  build_pkt(prepend_version(Version, [flush]));
-advertisement(2, Refs, []) ->
-  build_pkt(refs_to_reflines(Refs) ++ [flush]);
+advertisement(Version, [], _) -> build_pkt(prepend_version(Version, [flush]));
 advertisement(Version, Refs, []) ->
-  build_pkt(prepend_version(Version, refs_to_reflines(Refs) ++ [flush]));
+  build_pkt(prepend_version(Version, reflines(Refs) ++ [flush]));
 advertisement(Version, Refs, Caps) ->
-  [Top | RefLines] = refs_to_reflines(Refs),
+  [Top | RefLines] = reflines(Refs),
   CapLine = string:join([Top, [0], capstring(Caps)], ""),
   build_pkt(prepend_version(Version, [CapLine | RefLines ++ [flush]])).
 
@@ -46,3 +49,39 @@ capability({Key, Value}) ->
   lists:concat([Key, "=", Value]);
 capability(Key) when is_atom(Key) -> capability(atom_to_list(Key));
 capability(Key) -> Key.
+
+hex(Str) -> list_to_integer(Str, 16).
+read(Len) -> io:get_chars("", Len).
+read_length() -> hex(read(4)) - 4.
+
+read_command() ->
+  Len = read_length(),
+  case Len of
+    -4 -> flush;
+    Len when Len >= 0 ->
+      Input = read(Len),
+      ["command", Command] = string:split(Input, "="),
+      read_command(string:trim(Command), [], [], false)
+  end.
+read_command(Cmd, Caps, Args, DelimSeen) ->
+  Len = read_length(),
+  case Len of
+    -4 -> {Cmd, Caps, lists:reverse(Args)};
+    -3 -> read_command(Cmd, lists:reverse(Caps), Args, true);
+    Len ->
+      Input = string:trim(read(Len)),
+      if DelimSeen -> read_command(Cmd, Caps, [Input|Args], DelimSeen);
+         true      -> read_command(Cmd, [parse_cap(Input)|Caps], Args,
+	                           DelimSeen)
+      end
+  end.
+
+parse_cap(Str) ->
+  case string:split(Str, "=") of
+    [Str] -> cap_atom(Str);
+    [Key, Val] -> {cap_atom(Key), Val}
+  end.
+
+cap_atom("agent") -> agent;
+cap_atom("object-format") -> 'object-format';
+cap_atom(C) -> C.

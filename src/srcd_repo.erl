@@ -1,17 +1,23 @@
 -module(srcd_repo).
 -behaviour(gen_server).
--export([d/0, start_link/1, init/1, handle_call/3, handle_cast/2]).
+-export([d/0, start_link/1, start_link/2, init/1, handle_call/3, handle_cast/2]).
 -export([exists/1, head/1, head/2, refs/1, default_branch/1]).
 
--record(?MODULE, {name, head="heads/master", refs=[]}).
+-record(?MODULE, {name, head="refs/heads/master", refs=[]}).
 -define(gproc_name(Repo), {via, gproc, {n, l, {?MODULE, Repo}}}).
 -define(call(Repo, Msg), gen_server:call(?gproc_name(Repo), Msg)).
+-define(reply(Resp, State), {reply, Resp, State}).
+-define(reply_ok(Resp, State), {reply, {ok, Resp}, State}).
 
 -include_lib("kernel/include/logger.hrl").
 
 d() -> start_link("/asd").
-start_link(Repo) -> gen_server:start_link(?gproc_name(Repo), ?MODULE, [Repo], []).
-init([Repo])     -> {ok, #?MODULE{name=Repo}}.
+start_link(Repo)       -> gen_server:start_link(?gproc_name(Repo),
+                                                ?MODULE, [Repo], []).
+start_link(Repo, Refs) -> gen_server:start_link(?gproc_name(Repo),
+                                                ?MODULE, [Repo, Refs], []).
+init([Repo])       -> {ok, #?MODULE{name=Repo}};
+init([Repo, Refs]) -> {ok, #?MODULE{name=Repo, refs=lists:keysort(1, Refs)}}.
 
 handle_call(head, _, #?MODULE{head=Ref} = State) ->
   {reply, {ok, Ref}, State};

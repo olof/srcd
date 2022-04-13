@@ -8,19 +8,19 @@ cmd_module(_) -> invalid.
 
 invalid_command() -> {error, "invalid command\n"}.
 
-exec(Cmd, Env) ->
+exec(Cmd, #{version := Version}) ->
   case parse(Cmd) of
     {ok, Prog, Args} ->
       case cmd_module(Prog) of
         invalid -> invalid_command();
-        Mod -> enter_fsm(Mod, Args, Env)
+        Mod -> enter_fsm(Mod, Version, Args)
       end;
     {error, invalid} -> invalid_command()
   end.
 
-enter_fsm(Mod, Args, Env) ->
-  ?LOG_NOTICE("initial ~p:~p (~p)", [Mod, Args, Env]),
-  case Mod:init(Args, Env) of
+enter_fsm(Mod, Version, Args) ->
+  ?LOG_NOTICE("initial ~p:~p (~p)", [Mod, Version, Args]),
+  case Mod:init(Version, Args) of
     {ok, State, Data} -> step_fsm(Mod, State, Data);
     {error, Reason} -> {error, Reason}
   end.
