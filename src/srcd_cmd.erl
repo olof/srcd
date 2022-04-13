@@ -6,15 +6,16 @@ cmd_module("git-receive-pack") -> srcd_receive_pack;
 cmd_module("git-upload-pack") -> srcd_upload_pack;
 cmd_module(_) -> invalid.
 
+invalid_command() -> {error, "invalid command\n"}.
+
 exec(Cmd, Env) ->
-  ?LOG_NOTICE("ENV = ~p", [Env]),
   case parse(Cmd) of
     {ok, Prog, Args} ->
       case cmd_module(Prog) of
-        invalid -> {error, invalid_cmd};
+        invalid -> invalid_command();
         Mod -> enter_fsm(Mod, Args, Env)
       end;
-    {error, invalid} -> {error, invalid_cmd}
+    {error, invalid} -> invalid_command()
   end.
 
 enter_fsm(Mod, Args, Env) ->
@@ -29,11 +30,20 @@ step_fsm(Mod, State, Data) ->
   case Mod:State(Data) of
     {next_state, NewState, NewData} -> step_fsm(Mod, NewState, NewData);
     {next_state, NewState, Output, NewData} ->
+      ?LOG_NOTICE("> ~p", [Output]),
       io:put_chars(Output),
       step_fsm(Mod, NewState, NewData);
-    ok -> {ok, ""};
-    {ok, Res} -> {ok, Res};
-    {error, Reason} -> {error, Reason}
+    ok ->
+      ?LOG_INFO("exec finnished successfully"),
+      {ok, ""};
+    {ok, Res} ->
+      ?LOG_NOTICE("> ~p", [Res]),
+      ?LOG_INFO("exec finnished successfully"),
+      {ok, Res};
+    {error, Reason} ->
+      ?LOG_NOTICE("> ~p", [Reason]),
+      ?LOG_INFO("exec failed"),
+      {error, Reason}
   end.
 
 parse(Cmdline) ->

@@ -1,5 +1,5 @@
 -module(srcd_pack).
--export([advertisement/3]).
+-export([advertisement/3, build_pkt/1]).
 
 -include_lib("kernel/include/logger.hrl").
 
@@ -17,8 +17,12 @@ ref_val(Refs, Ref) ->
 refs_to_reflines(Refs) ->
   [string:join([Commit, Name], " ") || {Name, Commit} <- Refs].
 
+advertisement(2, [], _) ->
+  build_pkt([flush]);
 advertisement(Version, [], _) ->
   build_pkt(prepend_version(Version, [flush]));
+advertisement(2, Refs, []) ->
+  build_pkt(refs_to_reflines(Refs) ++ [flush]);
 advertisement(Version, Refs, []) ->
   build_pkt(prepend_version(Version, refs_to_reflines(Refs) ++ [flush]));
 advertisement(Version, Refs, Caps) ->
@@ -31,7 +35,7 @@ prepend_version(1, Pkt) -> ["version 1\n"|Pkt];
 prepend_version(2, Pkt) -> ["version 2\n"|Pkt].
 
 build_pkt(Lines) ->
-  {ok, [pkt_line(Line) || Line <- Lines]}.
+  {ok, lists:concat([pkt_line(Line) || Line <- Lines])}.
 
 capstring(Caps) -> string:join([capability(C) || C <- Caps], " ").
 capability({Key, Value}) when is_atom(Key) ->
