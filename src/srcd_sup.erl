@@ -28,12 +28,12 @@ init([]) ->
       },
       #{
         id => sample_empty_repo,
-        start => {srcd_repo, start_link, ["/asd"]}
+        start => {srcd_repo, start_link, ["/empty.git"]}
       },
       #{
         id => sample_repo_2,
         start => {srcd_repo, start_link, [
-          "/empty",
+          "/no-content.git",
           [
             {"refs/heads/master", "4a5ddb3241c127daa27cf1ba74adba1f284f6693"}
           ],
@@ -78,7 +78,7 @@ init([]) ->
       #{
         id => sample_repo_3,
         start => {srcd_repo, start_link, [
-          "/files",
+          "/content.git",
           [
             {"refs/heads/master", "2000f31abf7f7fb344a9e9f4ad3e396f1b8fe46a"}
           ],
