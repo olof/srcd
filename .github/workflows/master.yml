@@ -1,0 +1,25 @@
+name: Master branch
+
+on:
+  push:
+    branches: [ master ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: erlang:23
+    steps:
+    - uses: actions/checkout@v3
+    - name: Dependency cache
+      uses: actions/cache@v3
+      with:
+        key: otp23
+        path: _build
+    - name: Compile
+      run: rebar3 compile
+    - name: Run tests
+      run: rebar3 do eunit, ct
