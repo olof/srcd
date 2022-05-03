@@ -1,6 +1,39 @@
 -module(srcd_utils).
 
--export([cmd_split/1]).
+-export([cmd_split/1, hex_to_int/1, hex_to_bin_sha1/1]).
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+-endif.
+
+hex_to_int(Hex) ->
+  {ok, [N], []} = io_lib:fread("~16u", Hex),
+  N.
+
+-ifdef(TEST).
+
+hex_to_int_test_() ->
+  [
+    ?_assertEqual(15, hex_to_int("F")),
+    ?_assertEqual(15, hex_to_int("0F")),
+    ?_assertEqual(255, hex_to_int("FF"))
+  ].
+
+-endif.
+
+hex_to_bin_sha1(Hex) when length(Hex) =:= 40 ->
+  N = hex_to_int(Hex),
+  binary_to_list(<<N:160>>).
+
+-ifdef(TEST).
+
+hex_to_bin_sha1_test_() ->
+  [
+    ?_assertEqual([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,15],
+                  hex_to_bin_sha1("000000000000000000000000000000000000000F"))
+  ].
+
+-endif.
 
 cmd_split(Cmd) ->
   cmd_split(Cmd, "", false, false, []).
@@ -31,7 +64,6 @@ cmd_split([Ch|Cmd], This, Q, false, Res) ->
   cmd_split(Cmd, [Ch|This], Q, false, Res).
 
 -ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
 -define(_ok(V, In), ?_assertEqual({ok, V}, cmd_split(In))).
 
 cmd_split_test_() ->

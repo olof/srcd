@@ -2,16 +2,17 @@
 -export([exec/2]).
 -include_lib("kernel/include/logger.hrl").
 
-cmd_module("git-receive-pack") -> srcd_receive_pack;
-cmd_module("git-upload-pack") -> srcd_upload_pack;
-cmd_module(_) -> invalid.
+cmd_module("git-upload-pack", 2) -> srcd_pack_v2;
+cmd_module("git-receive-pack", _) -> srcd_receive_pack;
+cmd_module("git-upload-pack", _) -> srcd_upload_pack;
+cmd_module(_, _) -> invalid.
 
 invalid_command() -> {error, "invalid command\n"}.
 
 exec(Cmd, #{version := Version}) ->
   case parse(Cmd) of
     {ok, Prog, Args} ->
-      case cmd_module(Prog) of
+      case cmd_module(Prog, Version) of
         invalid -> invalid_command();
         Mod -> enter_fsm(Mod, Version, Args)
       end;
