@@ -33,8 +33,8 @@ Obvious missing things:
 
 ### ssh
 
-The ssh daemon will accept any username, and any ssh key as along
-as an ssh key is being presented. I.e, you must have a key,
+The ssh daemon will accept the "git" username, and any ssh key as
+along as an ssh key is being presented. I.e, you must have a key,
 doesn't matter which one. This is because I haven't focused on
 this part yet.
 
@@ -58,8 +58,8 @@ Currently, my workflow is just to use
     $ rebar3 shell
 
 This will start an ssh daemon on localhost port 22222 that will
-accept any ssh key and any user. (Yes, this is one of the things
-that makes it **not production ready**.)
+accept any ssh key and the "git" user. (Yes, this is one of the
+things that makes it **not production ready**.)
 
 It serves three sample repos, defined in `srcd_sup.erl`:
 
