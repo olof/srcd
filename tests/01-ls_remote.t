@@ -1,7 +1,7 @@
 plan 2
 REPO_BASE=ssh://${USER}@$HOST:${PORT}
 ls_remote() {
-	git ls-remote "$REPO_BASE/$1" 2>/dev/null
+	git ls-remote "$REPO_BASE/$1"
 }
 
 is "$(ls_remote empty.git)" "" "empty.git: no remote refs"
