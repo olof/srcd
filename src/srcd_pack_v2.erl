@@ -128,7 +128,7 @@ ack_oid(Repo, Oid) ->
 ls_ref_args(Args) -> ls_ref_args(Args, []).
 ls_ref_args([], Res) -> lists:reverse(Res);
 ls_ref_args([Arg|Args], Res) ->
-  [Cmd|MaybeArgArgs] = string:split(Arg, " "),
+  [Cmd|MaybeArgArgs] = string:split(string:trim(Arg), " "),
   ls_ref_args(Args, case Cmd of
     "peel" -> [peel|Res];
     "symrefs" -> [symrefs|Res];
@@ -142,7 +142,7 @@ ls_ref_args([Arg|Args], Res) ->
         F([[Str, Arg]|T], Res) -> F(T, [{list_to_atom(Str), Arg}|Res])
        ).
 
-fetch_args(Args) -> fetch_args([string:split(Arg, " ") || Arg <- Args], []).
+fetch_args(Args) -> fetch_args([string:split(string:trim(Arg), " ") || Arg <- Args], []).
 fetch_args([], Res) -> lists:reverse(Res);
 ?KNOWN_ARG(fetch_args, "want");
 ?KNOWN_ARG(fetch_args, "have");
