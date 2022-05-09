@@ -1,0 +1,9 @@
+[
+  {srcd, [
+    {sshd, [
+      {host, "${HOST}"},
+      {port, ${PORT}},
+      {keydir, "${PWD}/keys"}
+    ]}
+  ]}
+].
