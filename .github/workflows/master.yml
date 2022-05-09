@@ -21,5 +21,9 @@ jobs:
         path: _build
     - name: Compile
       run: rebar3 compile
-    - name: Run tests
+    - name: Run unit tests
       run: rebar3 do eunit, ct
+    - name: Build release
+      run: rebar3 release
+    - name: Run integration tests
+      run: sh tests/run.sh
