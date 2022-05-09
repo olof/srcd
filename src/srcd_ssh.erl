@@ -37,7 +37,10 @@ init([]) ->
     ],
     proplists:get_value(opts, Settings, [])
   ]),
-  case ssh:daemon(Host, Port, Opts) of
+
+  {ok, ListenIp} = inet:getaddr(Host, inet),
+
+  case ssh:daemon(ListenIp, Port, Opts) of
     {ok, Daemon} -> {ok, #?MODULE{daemon=Daemon}};
     {error, Err} -> {stop, {error, Err}}
   end.
