@@ -98,14 +98,14 @@ fetch_ack(Data, Repo, Wants, Haves) ->
       {ok, Packfile} = fetch_packfile(Repo, Wants, Haves),
       {ok, Acks} = srcd_pack:build_pkt(lists:concat([
         ["acknowledgments\n"],
-        [lists:concat(["ACK ", Oid, "\n"]) || Oid <- Haves],
+        [lists:concat(["ACK ", Oid, "\n"]) || Oid <- Wants],
         ["ready\n", delim]
       ])),
       {ok, Acks ++ Packfile};
     false ->
       {ok, Acks} = srcd_pack:build_pkt(lists:concat([
         ["acknowledgments\n"],
-        [ack_oid(Repo, Oid) || Oid <- Haves],
+        [ack_oid(Repo, Oid) || Oid <- Wants],
         [flush]
       ])),
       {next_state, read_command, Acks, Data}
