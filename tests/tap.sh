@@ -15,8 +15,8 @@ is() {
 	[ "$1" = "$2" ]
 	case $? in
 		0) _tap ok "$3" ;;
-		*) echo "Got:      <<<$1>>>" >&2
-		   echo "Expected: <<<$2>>>" >&2
+		*) echo "Got:      <<<$1>>>"
+		   echo "Expected: <<<$2>>>"
 		   _tap 'not ok' "$3"
 	esac
 }
