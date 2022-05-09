@@ -1,5 +1,5 @@
 plan 2
-REPO_BASE="ssh://${USER}@localhost:${PORT}"
+REPO_BASE="ssh://${USER}@$HOST:${PORT}"
 
 git clone -q "$REPO_BASE/empty.git" repo >/dev/null 2>&1 ||
 	exit 1

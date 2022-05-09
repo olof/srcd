@@ -13,7 +13,7 @@ trap clean EXIT
 export LANG=C
 export USER=git
 export PORT=22222
-export HOST=localhost
+export HOST=127.199.23.92
 
 tmpd="$(mktemp -d /tmp/srcd-test-XXXXX)"
 
@@ -26,11 +26,12 @@ eval `ssh-agent`
 
 ssh-add "$tmpd/key"
 
-
 while :; do
-	output=$(ssh -p $PORT $USER@$HOST true 2>&1 | tr -d \\r)
+	output=$(ssh -o StrictHostKeyChecking=accept-new \
+	             -o UserKnownHostsFile=/dev/null \
+	             -p $PORT $USER@$HOST true 2>&1 | tr -d \\r)
 	case "$output" in
-		"**Error** invalid command") break ;;
+		*"**Error** invalid command"*) break ;;
 		"ssh: connect to host $HOST port $PORT: Connection refused")
 			echo "sshd not ready yet, retrying in 0.5s" >&2
 			sleep 0.5;

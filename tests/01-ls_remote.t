@@ -1,5 +1,5 @@
 plan 2
-REPO_BASE=ssh://${USER}@localhost:${PORT}
+REPO_BASE=ssh://${USER}@$HOST:${PORT}
 ls_remote() {
 	git ls-remote "$REPO_BASE/$1" 2>/dev/null
 }
