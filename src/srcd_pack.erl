@@ -1,5 +1,5 @@
 -module(srcd_pack).
--export([advertisement/3, build_pkt/1, read_command/0]).
+-export([advertisement/3, build_pkt/1, read_line/0, read_command/0]).
 -export([build_pkt/1, reflines/1, reflines_with_head/2]).
 
 -include_lib("kernel/include/logger.hrl").
@@ -54,22 +54,25 @@ hex(Str) -> list_to_integer(Str, 16).
 read(Len) -> io:get_chars("", Len).
 read_length() -> hex(read(4)) - 4.
 
-read_command() ->
-  Len = read_length(),
-  case Len of
+read_line() ->
+  case read_length() of
     -4 -> flush;
-    Len when Len >= 0 ->
-      Input = read(Len),
+    -3 -> delim;
+    Len when Len >= 0 -> {data, read(Len)}
+  end.
+
+read_command() ->
+  case read_line() of
+    {data, Input} ->
       ["command", Command] = string:split(Input, "="),
-      read_command(string:trim(Command), [], [], false)
+      read_command(string:trim(Command), [], [], false);
+    Line -> Line
   end.
 read_command(Cmd, Caps, Args, DelimSeen) ->
-  Len = read_length(),
-  case Len of
-    -4 -> {Cmd, Caps, lists:reverse(Args)};
-    -3 -> read_command(Cmd, lists:reverse(Caps), Args, true);
-    Len ->
-      Input = string:trim(read(Len)),
+  case read_line() of
+    flush -> {Cmd, Caps, lists:reverse(Args)};
+    delim -> read_command(Cmd, lists:reverse(Caps), Args, true);
+    {data, Input} ->
       if DelimSeen -> read_command(Cmd, Caps, [Input|Args], DelimSeen);
          true      -> read_command(Cmd, [parse_cap(Input)|Caps], Args,
 	                           DelimSeen)
