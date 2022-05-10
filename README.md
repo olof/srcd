@@ -114,6 +114,10 @@ You can do `pigz -zd <packfile.payload`, but that will only get
 you the first object (sometimes enough!). Perhaps I'll develop a
 small perl script to split such files as a development aide.
 
+Update: Or you can create a new empty repo and do `git
+unpack-objects <packfile.bin`. That may also work. Might even be
+simpler.
+
 ### Test
 
     $ rebar3 eunit
