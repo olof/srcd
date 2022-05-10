@@ -51,7 +51,6 @@ export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new -o UserKnownHost
 cd "$tmpd"
 export GIT_TRACE=$PWD/git.log
 export GIT_TRACE_PACKET=$PWD/git.packet.log
-export GIT_CMD=git
 if ! prove -e "$SRCDIR/tests/tap.sh" -v "$SRCDIR/tests/"*.t; then
 	echo "git trace:"
 	cat git.log
