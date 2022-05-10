@@ -8,18 +8,13 @@
   fetch/1
 ]).
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
-
--include_lib("kernel/include/logger.hrl").
--record(?MODULE, {repo, opts=[], version=0}).
+-include("srcd.hrl").
 
 caps() -> srcd_ssh:caps() ++ [].
 
 init(Version = 2, Args) ->
   {ok, {Repo, Opts}} = parse_args(Args),
-  Data = #?MODULE{repo=Repo, version=Version, opts=Opts},
+  Data = #pack_repo{repo=Repo, version=Version, opts=Opts},
   {ok, handshake, Data}.
 
 handshake(Data) ->
@@ -34,7 +29,7 @@ handshake(Data) ->
   ]),
   {next_state, read_command, Greeting, Data}.
 
-read_command(#?MODULE{repo=Repo} = Data) ->
+read_command(#pack_repo{repo=Repo} = Data) ->
   case srcd_pack:read_command() of
     flush -> ok;
     {Cmd, Caps, Args} ->
@@ -50,7 +45,7 @@ process_command({Data, "fetch", {Caps, Args}}) ->
 process_command({_, _, _}) ->
   {error, "unsupported command"}.
 
-ls_refs({#?MODULE{repo=Repo} = Data, Caps, Args}) ->
+ls_refs({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
   case srcd_repo:refs(Repo) of
     {ok, []} ->
       {ok, Adv} = srcd_pack:build_pkt([flush]),
@@ -71,7 +66,7 @@ ls_refs({#?MODULE{repo=Repo} = Data, Caps, Args}) ->
       {error, "No such repo"}
   end.
 
-fetch({#?MODULE{repo=Repo} = Data, Caps, Args}) ->
+fetch({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
   ?LOG_NOTICE("Client args ~p", [Args]),
   Wants = proplists:get_all_values(want, Args),
   ?LOG_NOTICE("Client wants ~p", [Wants]),

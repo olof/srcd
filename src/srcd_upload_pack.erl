@@ -10,14 +10,13 @@
   ls_refs/1
 ]).
 
--include_lib("kernel/include/logger.hrl").
--record(?MODULE, {repo, opts=[], version=0}).
+-include("srcd.hrl").
 
 caps() -> srcd_ssh:caps() ++ [].
 
 init(Version, Args) ->
   {ok, {Repo, Opts}} = parse_args(Args),
-  Data = #?MODULE{repo=Repo, version=Version, opts=Opts},
+  Data = #pack_repo{repo=Repo, version=Version, opts=Opts},
   case Version of
     2 -> {ok, handshake, Data};
     _ -> {ok, advertise, Data}
@@ -76,7 +75,7 @@ parse_cap(["object-format", Hash]) -> {object_format, Hash};
 parse_cap(["side-band-64k"]) -> 'side-band-64k';
 parse_cap([[]]) -> skip.
 
-advertise(#?MODULE{repo=Repo, version=Version, opts=Opts} = Data) ->
+advertise(#pack_repo{repo=Repo, version=Version, opts=Opts} = Data) ->
   case srcd_repo:refs(Repo) of
     {ok, Refs} ->
       {ok, Adv} = srcd_pack:advertisement(Version, Refs, caps()),
@@ -88,7 +87,7 @@ advertise(#?MODULE{repo=Repo, version=Version, opts=Opts} = Data) ->
       {error, "No such repo\n"}
   end.
 
-read_command(#?MODULE{repo=Repo} = Data) ->
+read_command(#pack_repo{repo=Repo} = Data) ->
   case srcd_pack:read_command() of
     flush -> ok;
     {Cmd, Caps, Args} ->
@@ -114,7 +113,7 @@ ls_ref_args([Arg|Args], Res) ->
       [{prefix, ArgArgs}|Res]
   end).
 
-ls_refs({#?MODULE{repo=Repo} = Data, Caps, Args}) ->
+ls_refs({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
   case srcd_repo:refs(Repo) of
     {ok, []} ->
       {ok, Adv} = srcd_pack:build_pkt([flush]),
