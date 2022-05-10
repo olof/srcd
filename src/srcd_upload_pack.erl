@@ -36,15 +36,68 @@ wait_for_input(Data) -> wait_for_input(Data, [], []).
 wait_for_input(Data, Res, Caps0) ->
   case srcd_pack:read_line() of
     flush -> {next_state, process_lines, {Data,
-                                          lists:reverse(Res),
-                                          lists:reverse(Caps0)}};
-    {data, Line} ->
-      {Line1, Caps} = capture_caps(Line, []),
-      wait_for_input(Data, [Line1|Res], Caps)
+                                          lists:reverse(Caps0),
+                                          lists:reverse(Res)}};
+    {data, Line2} ->
+      Line1 = string:trim(Line2),
+      ?LOG_NOTICE("Got line: ~p", [Line1]),
+      {Line, Caps} = capture_caps(Line1, []),
+      ?LOG_NOTICE("Got line [~p]: ~p", [Caps, Line]),
+      ?LOG_NOTICE("Got line [~p]: ~p", [Caps, parse_line(Line)]),
+      wait_for_input(Data, [parse_line(Line)|Res], Caps)
   end.
 
-process_lines({Data, Caps, Args}) ->
-  srcd_pack_v2:fetch({Data, Caps, Args}).
+process_lines({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
+  ?LOG_NOTICE("Client args ~p", [Args]),
+  Wants = proplists:get_all_values(want, Args),
+  ?LOG_NOTICE("Client wants ~p", [Wants]),
+  Haves = proplists:get_all_values(have, Args),
+  ?LOG_NOTICE("Client has ~p", [Haves]),
+  case proplists:get_bool(done, Args) of
+    true -> fetch_packfile(Repo, Wants, Haves);
+    false -> fetch_ack(Data, Repo, Wants, Haves)
+  end.
+
+parse_line("done") -> done;
+parse_line(Line) ->
+  ?LOG_NOTICE("parse_line: ~p", [Line]),
+  ?LOG_NOTICE("parse_line: ~p", [string:prefix(Line, "want ")]),
+  case string:prefix(Line, "want ") of
+    nomatch -> Line;
+    Oid -> {want, Oid}
+  end.
+
+fetch_packfile(Repo, Wants, Haves) ->
+  srcd_pack_file:build(Repo, Wants).
+
+fetch_ack(Data, Repo, Wants, Haves) ->
+  case Haves of
+    [] ->
+      {ok, Packfile} = fetch_packfile(Repo, Wants, Haves),
+      {ok, Acks} = srcd_pack:build_pkt(["NAK\n"]),
+      ?LOG_NOTICE("nak sent for initial clone, going for it"),
+      {ok, Acks ++ Packfile};
+    Haves ->
+      {ok, Acks} = srcd_pack:build_pkt(lists:concat([
+        [ack_oid(Repo, Oid) || Oid <- Wants],
+        [flush]
+      ])),
+      {next_state, read_command, Acks, Data}
+  end.
+
+has_all_oids(Repo, []) -> true;
+has_all_oids(Repo, [Oid|Oids]) ->
+  case srcd_repo:exists(Repo, Oid) of
+    true -> has_all_oids(Repo, Oids);
+    false -> false
+  end.
+
+ack_oid(Repo, Oid) ->
+  Res = case srcd_repo:exists(Repo, Oid) of
+    true -> "ACK";
+    false -> "NAK"
+  end,
+  lists:concat([Res, " ", Oid, "\n"]).
 
 alt_delims(Line0, []) -> nomatch;
 alt_delims(Line0, [Delim|Alts]) ->
@@ -75,10 +128,25 @@ parse_cap(["object-format", Hash]) -> {object_format, Hash};
 parse_cap(["side-band-64k"]) -> 'side-band-64k';
 parse_cap([[]]) -> skip.
 
+reflines_with_head(Refs, Repo, Symrefs) ->
+  {ok, Ref} = srcd_repo:default_branch(Repo),
+  ?LOG_NOTICE("default ref = ~p", [Ref]),
+  case proplists:get_value(Ref, Refs) of
+    undefined -> reflines(Refs);
+    Oid -> reflines([{"HEAD", Oid} | Refs])
+  end.
+reflines(Refs) -> reflines(Refs, []).
+reflines([], Res) -> lists:reverse(Res);
+reflines([{Name, Commit} | Refs], Res) ->
+  reflines(Refs, [
+    string:join([Commit, Name], " ") | Res
+  ]).
+
 advertise(#pack_repo{repo=Repo, version=Version, opts=Opts} = Data) ->
   case srcd_repo:refs(Repo) of
     {ok, Refs} ->
-      {ok, Adv} = srcd_pack:advertisement(Version, Refs, caps()),
+      Reflines = reflines_with_head(Refs, Repo, false),
+      {ok, Adv} = srcd_pack:build_pkt(Reflines ++ [flush]),
       case proplists:get_value(advertise_refs, Opts) of
         true -> {ok, Adv};
         _ -> {next_state, wait_for_input, Adv, Data}
