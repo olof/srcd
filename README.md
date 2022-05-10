@@ -12,24 +12,56 @@ This repo does not represent a usable git daemon yet. But some
 things work:
 
  * transport protocols supported: ssh
- * git protocol supported: v2 (if anything)
+ * git protocol supported: a little bit of v0, a little bit of v2
  * record based definition of git objects (and pack encoding of these)
  * ls-refs working
  * fetch working, partially
-   * can clone repos
-   * can fetch repos with no change needed
-   * can fetch repos with new objects
+   * can clone repos (all git protocol versions)
+   * can fetch repos with no change needed (all git protocol versions)
+   * can fetch repos with new objects (git protocol v2)
 
 When I say "working" is that simple situations have been seen to work.
 
 Obvious missing things:
 
- * Write operations (push)
- * Authentication
- * Tags
- * Delete (maybe I don't want to support this? But I probably do)
+ * Write operations (push) (started working on it; fun fact: v2
+   protocol is all the rage, with everything covered. but git
+   does not support it for push! :))
+ * Authentication (ssh key manager / tie in to SSO)
+ * Git tags
+ * Delete (maybe I don't want to support this? But I probably do;
+   perhaps implemented as soft deletes)
  * Shallow clones
  * Delta objects ????
+
+### Things i may want to do with this.
+I don't know why I wrote this, but I do intend to make use of it!
+I think git (the tool) is well designed in how it can easily fit
+in a both server and client role, and using that to build any git
+service would be easy.
+
+We have also github's own erlgitd, which even saw production use
+for a short while if I understand it correctly. But it only
+serves git:// (and as such is read only). And when I studied it,
+I realized it only execs git (the tool). Awww, man, erlang as a
+cgi shell... Wouldn't erlang exceed on all parts related to being
+a git daemon? But git does a lot, so it really makes sense to rely
+on it. Anyways...
+
+So, the goal of this then? I have some reachable goals, where I
+intend to use it to keep application state and sync it over ssh
+between multiple nodes. Specifically, DNS zones and related
+configuration. git for this purpose made sense. I've could have
+(and have) implemented this directly using git (the tool) and
+openssh. But now I just wanted to try my hands on doing this with
+erlang.
+
+As part of this group of use cases, I want to integrate some kind
+of rendering/build support, so that clients can ask for content
+over http. We'll also want hook support, so that we can trigger
+these builds (and more, like updating DNS zonedata) on push.
+These things (except for hooks) may not necessarily be part of
+this repo directly.
 
 ### ssh
 
@@ -125,33 +157,3 @@ simpler.
 Some tests are written; some tests even test stuff of importance,
 but it is undertested. As the codebase matures, the importance of
 the tests will increase.
-
-Post scriptum
--------------
-I don't know why I wrote this, but I do intend to make use of it!
-I think git (the tool) is well designed in how it can easily fit
-in a both server and client role, and using that to build any git
-service would be easy. But I thought about something stupid JFK
-said once...
-
-We have also github's own erlgitd, which even saw production use
-for a short while if I understand it correctly. But it only
-serves git:// (and as such is read only). And when I studied it,
-I realized it only execs git (the tool). Awww, man, erlang as a
-cgi shell... Wouldn't erlang exceed on all parts related to being
-a git daemon? But git does a lot, so it really makes sense to rely
-on it. Anyways...
-
-So, the goal of this then? I have some reachable goals, where I
-intend to use it to keep application state and sync it over ssh
-between multiple nodes. Specifically, DNS zones and related
-configuration. git for this purpose made sense. I've could have
-(and have) implemented this directly using git (the tool) and
-openssh. But now I just wanted to try my hands on doing this with
-erlang.
-
-More flufffy goals I thought about for a long time, is the
-marriage of git and bittorrent related technologies. (I think you
-know exactly what I mean, and you have had this thought as well.)
-If this repo can be the basis for solutions in that field, I
-would be thrilled.
