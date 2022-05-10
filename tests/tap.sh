@@ -1,6 +1,8 @@
 #!/bin/sh
 N=0
 
+alias git="$GIT_CMD"
+
 _tap() {
 	local status="$1" msg="$2"
 	N=$((N+1))
@@ -28,5 +30,9 @@ dir_exists() {
 		_tap 'not ok' "$2"
 	fi
 }
+
+test_name=${1##*/}
+tmpd=$(mktemp -d "./$test_name-XXXXXX")
+cd "$tmpd"
 
 . "$1"

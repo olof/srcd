@@ -1,4 +1,7 @@
 plan 12
+export GIT_CMD='git -c protocol.version=0'
+
+git --version
 
 git clone -q ssh://${USER}@$HOST:${PORT}/empty.git
 is $? 0 "empty.git: successful exit status of git clone"
