@@ -5,6 +5,7 @@
   handshake/1,
   read_command/1,
   process_command/1,
+  wait_for_input/1,
   ls_refs/1
 ]).
 
@@ -29,7 +30,50 @@ handshake(Data) ->
     "object-format=sha1\n",
     flush
   ]),
-  {next_state, read_command, Greeting, Data}.
+  {next_state, wait_for_input, Greeting, Data}.
+
+wait_for_input(Data) -> wait_for_input(Data, [], []).
+wait_for_input(Data, Res, Caps0) ->
+  case srcd_pack:read_line() of
+    flush -> {next_state, process_lines, {Data,
+                                          lists:reverse(Res),
+                                          lists:reverse(Caps0)}};
+    {data, Line} ->
+      case Caps0 of
+        [] -> [Line1, Caps] = string:split(Line, "\0"),
+	      wait_for_input(Data, [Line1|Res], parse_caps(Caps));
+	_ -> wait_for_input(Data, [Line|Res], Caps0)
+      end
+  end.
+
+alt_delims(Line0, []) -> nomatch;
+alt_delims(Line0, [Delim|Alts]) ->
+  case string:split(Line0, Delim) of
+    [Line0] -> alt_delims(Line0, Alts);
+    [Line, Caps] -> {Line, Caps}
+  end.
+
+capture_caps(Line1, []) ->
+  case string:prefix(Line1, "want ") of
+    nomatch -> Line1;
+    Line0 -> case alt_delims(Line0, ["\0", " "]) of
+      {Line, Caps} -> {"want " ++ Line, parse_caps(Caps)};
+      nomatch -> {"want " ++ Line0, []}
+    end
+  end;
+capture_caps(Line, Caps) -> {Line, Caps}.
+
+parse_caps(Caps) -> filter_caps(string:split(Caps, " ", all), []).
+filter_caps([], Res) -> lists:reverse(Res);
+filter_caps([Cap0|Caps], Res) ->
+  case parse_cap(string:split(Cap0, "=")) of
+    skip -> filter_caps(Caps, Res);
+    Cap -> filter_caps(Caps, [Cap|Res])
+  end.
+parse_cap(["agent", UA]) -> {agent, UA};
+parse_cap(["object-format", Hash]) -> {object_format, Hash};
+parse_cap(["side-band-64k"]) -> 'side-band-64k';
+parse_cap([[]]) -> skip.
 
 advertise(#?MODULE{repo=Repo, version=Version, opts=Opts} = Data) ->
   case srcd_repo:refs(Repo) of
