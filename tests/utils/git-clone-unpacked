@@ -1,0 +1,5 @@
+#!/bin/sh
+from=$1 to=$2
+! [ -d "$from/.git" ] || from=$from/.git
+git init --bare "$to"
+cat "$from"/objects/pack/pack-*.pack | git -C "$to" unpack-objects

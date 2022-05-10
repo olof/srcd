@@ -15,6 +15,8 @@ export USER=git
 export PORT=22222
 export HOST=127.199.23.92
 
+PATH=$PATH:$PWD/tests/utils
+
 tmpd="$(mktemp -d /tmp/srcd-test-XXXXX)"
 
 _build/default/rel/srcd/bin/srcd foreground 2>&1 >$tmpd/app.log &
