@@ -28,16 +28,29 @@ eval `ssh-agent`
 
 ssh-add "$tmpd/key"
 
+sleep_t=1
+retries=7
+
 while :; do
 	output=$(ssh -o StrictHostKeyChecking=accept-new \
 	             -o UserKnownHostsFile=/dev/null \
 	             -p $PORT $USER@$HOST true 2>&1 | tr -d \\r)
+	# Why do we mix stdout and stderr?
+	# On stdout we expect an application level error ("invalid command")
+	# On stderr we expect ssh level errors (econrefused)
+	# If neither of them exist in the mixed stream, we bail.
 	case "$output" in
 		*"**Error** invalid command"*) break ;;
 		"ssh: connect to host $HOST port $PORT: Connection refused")
-			echo "sshd not ready yet, retrying in 0.5s" >&2
-			sleep 0.5;
-			continue ;;
+			echo "sshd not ready yet, retrying in ${sleep_t}s" >&2
+			sleep $sleep_t;
+			sleep_t=$(($sleep_t * 2))
+			[ "$retries" -le 0 ] || continue
+			retries=$((retries-1))
+			echo "econnrefused, tried ${max_tries} times; bail" >&2
+			cat $tmpd/app.log >&2
+			echo "<<<$output>>>" >&2
+			exit 1 ;;
 		*)
 			echo "unexpected response from ssh, bailing" >&2
 			cat $tmpd/app.log >&2
