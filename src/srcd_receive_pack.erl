@@ -43,7 +43,7 @@ filter_caps([Cap0|Caps], Res) ->
     Cap -> filter_caps(Caps, [Cap|Res])
   end.
 parse_cap(["agent", UA]) -> {agent, UA};
-parse_cap(["object-format", Hash]) -> {object_forrmat, Hash};
+parse_cap(["object-format", Hash]) -> {object_format, Hash};
 parse_cap(["side-band-64k"]) -> 'side-band-64k';
 parse_cap([[]]) -> skip.
 
