@@ -1,1 +1,1 @@
-"$0" "$SRCDIR/tests/01-clone.t.tmpl"
+"$0" "$SRCDIR/tests/impl/clone.t.tmpl"

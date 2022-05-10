@@ -1,1 +1,1 @@
-. "$SRCDIR/tests/01-clone.t.tmpl"
+. "$SRCDIR/tests/impl/clone.t.tmpl"

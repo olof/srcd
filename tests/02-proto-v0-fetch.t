@@ -1,1 +1,1 @@
-. "$SRCDIR/tests/02-fetch.t.tmpl"
+. "$SRCDIR/tests/impl/fetch.t.tmpl"
