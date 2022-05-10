@@ -5,6 +5,7 @@
   handshake/1,
   read_command/1,
   process_command/1,
+  process_lines/1,
   wait_for_input/1,
   ls_refs/1
 ]).
@@ -30,7 +31,7 @@ handshake(Data) ->
     "object-format=sha1\n",
     flush
   ]),
-  {next_state, wait_for_input, Greeting, Data}.
+  {next_state, read_command, Greeting, Data}.
 
 wait_for_input(Data) -> wait_for_input(Data, [], []).
 wait_for_input(Data, Res, Caps0) ->
@@ -39,12 +40,12 @@ wait_for_input(Data, Res, Caps0) ->
                                           lists:reverse(Res),
                                           lists:reverse(Caps0)}};
     {data, Line} ->
-      case Caps0 of
-        [] -> [Line1, Caps] = string:split(Line, "\0"),
-	      wait_for_input(Data, [Line1|Res], parse_caps(Caps));
-	_ -> wait_for_input(Data, [Line|Res], Caps0)
-      end
+      {Line1, Caps} = capture_caps(Line, []),
+      wait_for_input(Data, [Line1|Res], Caps)
   end.
+
+process_lines({Data, Caps, Args}) ->
+  srcd_pack_v2:fetch({Data, Caps, Args}).
 
 alt_delims(Line0, []) -> nomatch;
 alt_delims(Line0, [Delim|Alts]) ->
@@ -81,7 +82,7 @@ advertise(#?MODULE{repo=Repo, version=Version, opts=Opts} = Data) ->
       {ok, Adv} = srcd_pack:advertisement(Version, Refs, caps()),
       case proplists:get_value(advertise_refs, Opts) of
         true -> {ok, Adv};
-        _ -> {next_state, read_command, Adv, Data}
+        _ -> {next_state, wait_for_input, Adv, Data}
       end;
     {error, enoent} ->
       {error, "No such repo\n"}
