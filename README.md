@@ -55,7 +55,7 @@ Hacking
 
 Currently, my workflow is just to use
 
-    $ rebar3 shell
+    $ HOST=localhost PORT=22222 rebar3 shell
 
 This will start an ssh daemon on localhost port 22222 that will
 accept any ssh key and the "git" user. (Yes, this is one of the
