@@ -1,16 +1,16 @@
 #!/bin/sh
 N=0
 test_name=${1##*/}
+test_dir=${1%/*}
+test_protocol_v=${test_dir##*/v}
+test_protocol_v=${test_protocol_v:-2}
 
 git() {
-	local proto="$GIT_PROTOCOL_VERSION"
-	case $proto:$test_name in
-		:[0-9][0-9]-proto-v[012]-*.t)
-			proto=${test_name#??-proto-v}
-			proto=${proto%${proto#?}}
-	esac
-
-	command ${GIT_CMD:-git} ${proto:+-c protocol.version="$proto"} "$@"
+#	printf "executing: %s -c protocol.version=%s %s" >&2 \
+#		"${GIT_CMD:-git}" "$test_protocol_v" "$*"
+	command ${GIT_CMD:-git} \
+		-c protocol.version="$test_protocol_v" \
+		"$@"
 }
 
 _tap() {
@@ -41,7 +41,5 @@ dir_exists() {
 	fi
 }
 
-tmpd=$(mktemp -d "./$test_name-XXXXXX")
-cd "$tmpd"
-
-. "$1"
+tmpd="${test_name}_proto_v${test_protocol_v}"
+mkdir "$tmpd" && cd "$tmpd" && . "$1"
