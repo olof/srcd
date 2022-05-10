@@ -1,7 +1,17 @@
 #!/bin/sh
 N=0
+test_name=${1##*/}
 
-alias git="$GIT_CMD"
+git() {
+	local proto="$GIT_PROTOCOL_VERSION"
+	case $proto:$test_name in
+		:[0-9][0-9]-proto-v[012]-*.t)
+			proto=${test_name#??-proto-v}
+			proto=${proto%${proto#?}}
+	esac
+
+	command ${GIT_CMD:-git} ${proto:+-c protocol.version="$proto"} "$@"
+}
 
 _tap() {
 	local status="$1" msg="$2"
@@ -31,7 +41,6 @@ dir_exists() {
 	fi
 }
 
-test_name=${1##*/}
 tmpd=$(mktemp -d "./$test_name-XXXXXX")
 cd "$tmpd"
 
