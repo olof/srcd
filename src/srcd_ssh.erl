@@ -13,7 +13,7 @@ caps() -> [
   quiet,
   atomic,
   {'object-format', sha1},
-  {agent, "ethup/0"}
+  {agent, "srcd/0"}
 ].
 
 start_link() ->
