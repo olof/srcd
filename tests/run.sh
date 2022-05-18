@@ -31,6 +31,13 @@ ssh-add "$tmpd/key"
 sleep_t=1
 retries=5
 
+die_dump_log() {
+	echo Error: "$@" >&2
+	cat $tmpd/app.log >&2
+	echo "<<<$output>>>" >&2
+	exit 1
+}
+
 while :; do
 	output=$(ssh -o StrictHostKeyChecking=accept-new \
 	             -o UserKnownHostsFile=/dev/null \
@@ -42,20 +49,16 @@ while :; do
 	case "$output" in
 		*"**Error** invalid command"*) break ;;
 		"ssh: connect to host $HOST port $PORT: Connection refused")
+			[ -d "/proc/$SRV_PID" ] || die_dump_log "srcd has died"
 			echo "sshd not ready yet, retrying in ${sleep_t}s" >&2
 			sleep $sleep_t;
 			sleep_t=$(($sleep_t * 2))
-			[ "$retries" -le 0 ] || continue
 			retries=$((retries-1))
-			echo "econnrefused, tried ${max_tries} times; bail" >&2
-			cat $tmpd/app.log >&2
-			echo "<<<$output>>>" >&2
-			exit 1 ;;
+			[ "$retries" -le 0 ] || continue
+			die_dump_log "econnrefused, tried ${max_tries} times"
+			;;
 		*)
-			echo "unexpected response from ssh, bailing" >&2
-			cat $tmpd/app.log >&2
-			echo "<<<$output>>>" >&2
-			exit 1
+			die_dump_log "unexpected ssh response: <<<$output>>>"
 	esac
 done
 
