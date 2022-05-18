@@ -16,17 +16,16 @@ things work:
  * record based definition of git objects (and pack encoding of these)
  * ls-refs working
  * fetch working, partially
-   * can clone repos (all git protocol versions)
-   * can fetch repos with no change needed (all git protocol versions)
-   * can fetch repos with new objects (git protocol v2)
+   * can clone repos
+   * can fetch repos with no change needed
+   * can fetch repos with new objects
+ * packfile and object parsing
 
 When I say "working" is that simple situations have been seen to work.
 
 Obvious missing things:
 
- * Write operations (push) (started working on it; fun fact: v2
-   protocol is all the rage, with everything covered. but git
-   does not support it for push! :))
+ * Write operations (push) (ongoing!)
  * Authentication (ssh key manager / tie in to SSO)
  * Git tags
  * Delete (maybe I don't want to support this? But I probably do;
