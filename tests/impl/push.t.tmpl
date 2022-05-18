@@ -1,0 +1,22 @@
+plan 1
+REPO_BASE="ssh://${USER}@$HOST:${PORT}"
+
+export COMMITTER_NAME="qa tester"
+export COMMITTER_EMAIL=qa@example.com
+export COMMITTER_DATE="1652222445 +0000"
+export AUTHOR_NAME=$COMMITTER_NAME
+export AUTHOR_EMAIL=$COMMITTER_EMAIL
+export AUTHOR_DATE=$COMMITTER_DATE
+
+git clone -q "$REPO_BASE/empty.git" repo ||
+	exit 1
+
+cd repo
+printf %s test >file
+git add file
+git commit -m message
+git show >&2
+
+# step 1: accept a push, but do nothing with it. try to fool git that it works
+git push -vv origin HEAD:refs/heads/master
+is $? 0 "empty.git: push new commit"
