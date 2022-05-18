@@ -29,7 +29,7 @@ eval `ssh-agent`
 ssh-add "$tmpd/key"
 
 sleep_t=1
-retries=7
+retries=5
 
 while :; do
 	output=$(ssh -o StrictHostKeyChecking=accept-new \
