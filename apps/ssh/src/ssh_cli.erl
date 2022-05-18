@@ -754,12 +754,16 @@ exec_in_self_group(ConnectionHandler, ChannelId, WantReply, State, Fun) ->
                                    {ok, Result} ->
                                        {ok, Result};
                                    {error, Error} ->
+                                       ?LOG_NOTICE("SSH Error: exec returned error: ~p", [Error]),
                                        {error, Error};
                                    X ->
+                                       ?LOG_NOTICE("SSH Error: bad exec return: ~p", [X]),
                                        {error, "Bad exec fun in server. Invalid return value: "++t2str(X)}
                                catch error:Err ->
+                                       ?LOG_NOTICE("SSH Error: exception ~p", [Err]),
                                        {error,Err};
                                      Cls:Exp ->
+                                       ?LOG_NOTICE("SSH Error: exception ~p:~p", [Cls, Exp]),
                                        {error,{Cls,Exp}}
                                end
                           of
