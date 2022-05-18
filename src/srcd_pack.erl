@@ -50,15 +50,14 @@ capability({Key, Value}) ->
 capability(Key) when is_atom(Key) -> capability(atom_to_list(Key));
 capability(Key) -> Key.
 
-hex(Str) -> list_to_integer(Str, 16).
-read(Len) -> io:get_chars("", Len).
-read_length() -> hex(read(4)) - 4.
+read_line_length() -> list_to_integer(srcd_utils:read(4), 16) - 4.
 
 read_line() ->
-  case read_length() of
+  case read_line_length() of
     -4 -> flush;
     -3 -> delim;
-    Len when Len >= 0 -> {data, read(Len)}
+    Len when Len >= 0 -> {data, srcd_utils:read(Len)};
+    T -> ?LOG_NOTICE("unknown pkt type: ~p", [T]), error
   end.
 
 read_command() ->
