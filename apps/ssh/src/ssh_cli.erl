@@ -395,19 +395,8 @@ out_enc(#state{encoding = PeerEnc,
 
 to_group([], _Group) ->
     ok;
-to_group([$\^C | Tail], Group) ->
-    exit(Group, interrupt),
-    to_group(Tail, Group);
 to_group(Data, Group) ->
-    Func = fun(C) -> C /= $\^C end,
-    Tail = case lists:splitwith(Func, Data) of
-        {[], Right} ->
-            Right;
-        {Left, Right} ->
-            Group ! {self(), {data, Left}},
-            Right
-    end,
-    to_group(Tail, Group).
+    Group ! {self(), {data, Data}}.
 
 %%--------------------------------------------------------------------
 %%% io_request, handle io requests from the user process,
