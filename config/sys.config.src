@@ -5,5 +5,14 @@
       {port, ${PORT}},
       {keydir, "${PWD}/keys"}
     ]}
-  ]}
+  ]},
+%  {kernel, [
+%    {logger, [
+%     {handler, default, logger_std_h, #{
+%       config => #{
+%         file => "./srcd.log"
+%       }
+%     }}
+%    ]}
+%  ]}
 ].
