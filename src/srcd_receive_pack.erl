@@ -66,6 +66,7 @@ process_packfile({#?MODULE{repo=Repo} = Data, Cmds, Packfile}) ->
   % TODO:
   %  - verify that packfile includes all necessary references
   %  - update Repo references, i.e. apply Cmds
+  ?LOG_NOTICE("I should verify the packfile here, but not yet implemented"),
   ok.
 
 check_cmds(Repo, [], Caps) -> ok;
