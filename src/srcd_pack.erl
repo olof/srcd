@@ -1,6 +1,6 @@
 -module(srcd_pack).
 -export([advertisement/3, build_pkt/1, read_line/0, read_command/0]).
--export([build_pkt/1, reflines/1, reflines_with_head/2]).
+-export([reflines/1, reflines_with_head/2]).
 
 -include_lib("kernel/include/logger.hrl").
 
