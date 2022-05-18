@@ -1,6 +1,6 @@
 -module(srcd_utils).
 
--export([cmd_split/1, hex_to_int/1, hex_to_bin_sha1/1]).
+-export([cmd_split/1, hex_to_int/1, hex_to_bin_sha1/1, pipe/2]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -82,3 +82,10 @@ cmd_split_test_() ->
     ?_assertEqual(error, cmd_split("echo \"foo bar"))
   ].
 -endif.
+
+pipe(State, []) -> {ok, State};
+pipe(State, [Step|Steps]) ->
+  case Step(State) of
+    {error, Err} -> {error, Err};
+    {ok, NewState} -> pipe(NewState, Steps)
+  end.
