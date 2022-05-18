@@ -1,6 +1,7 @@
 -module(srcd_receive_pack).
 -export([callback_mode/0, init/2]).
--export([advertise/1, wait_for_input/1, read_packfile/1, process_lines/1]).
+-export([advertise/1, wait_for_input/1, read_packfile/1,
+         process_packfile/1, process_lines/1]).
 -include_lib("kernel/include/logger.hrl").
 
 -record(?MODULE, {repo, version=0}).
@@ -62,10 +63,14 @@ process_lines({#?MODULE{repo=Repo} = Data, Lines, Caps}) ->
   end.
 
 read_packfile({Data, Cmds}) ->
- ?LOG_NOTICE("waiting for packfile"),
- Pack = srcd_pack:read_line(),
- ?LOG_NOTICE("Got line: ~p", [Pack]),
- {error, not_implemented}.
+  {ok, Packfile} = srcd_pack_file:read(),
+  {next_state, process_packfile, {Data, Cmds, Packfile}}.
+
+process_packfile({#?MODULE{repo=Repo} = Data, Cmds, Packfile}) ->
+  % TODO:
+  %  - verify that packfile includes all necessary references
+  %  - update Repo references, i.e. apply Cmds
+  ok.
 
 check_cmds(Repo, [], Caps) -> ok;
 check_cmds(Repo, [Cmd|Cmds], Caps) ->
