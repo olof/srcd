@@ -1,12 +1,12 @@
 plan 1
 REPO_BASE="ssh://${USER}@$HOST:${PORT}"
 
-export COMMITTER_NAME="qa tester"
-export COMMITTER_EMAIL=qa@example.com
-export COMMITTER_DATE="1652222445 +0000"
-export AUTHOR_NAME="$COMMITTER_NAME"
-export AUTHOR_EMAIL="$COMMITTER_EMAIL"
-export AUTHOR_DATE="$COMMITTER_DATE"
+export GIT_COMMITTER_NAME="qa tester"
+export GIT_COMMITTER_EMAIL=qa@example.com
+export GIT_COMMITTER_DATE="1652222445 +0000"
+export GIT_AUTHOR_NAME="$GIT_COMMITTER_NAME"
+export GIT_AUTHOR_EMAIL="$GIT_COMMITTER_EMAIL"
+export GIT_AUTHOR_DATE="$GIT_COMMITTER_DATE"
 
 git clone -q "$REPO_BASE/empty.git" repo ||
 	exit 1
@@ -14,7 +14,7 @@ git clone -q "$REPO_BASE/empty.git" repo ||
 cd repo
 printf %s test >file
 git add file
-git commit -m message
+git commit -m message || exit 1
 git show >&2
 
 # step 1: accept a push, but do nothing with it. try to fool git that it works
