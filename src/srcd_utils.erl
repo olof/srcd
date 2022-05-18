@@ -1,7 +1,8 @@
 -module(srcd_utils).
 
 -export([cmd_split/1, hex_to_int/1, bin_to_hex/1, bytes_to_hex/1,
-         hex_to_bin_sha1/1, pipe/2]).
+         hex_to_bin_sha1/1, pipe/2, deflate/1, read/1, read/2,
+         read_u32/0, read_u32/1]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -103,3 +104,26 @@ pipe(State, [Step|Steps]) ->
     {error, Err} -> {error, Err};
     {ok, NewState} -> pipe(NewState, Steps)
   end.
+
+deflate(Data) ->
+  Z = zlib:open(),
+  ok = zlib:deflateInit(Z, default),
+  [X] = zlib:deflate(Z, Data, finish),
+  ok = zlib:deflateEnd(Z),
+  binary_to_list(X).
+
+read(Len) ->
+  Bytes = io:get_chars("", Len),
+  Bytes.
+read(Len, Digest) ->
+  Bytes = read(Len),
+  {Bytes, crypto:hash_update(Digest, Bytes)}.
+
+read_u32() ->
+  Bytes = srcd_utils:read(4),
+  <<N:32>> = list_to_binary(Bytes),
+  N.
+read_u32(Digest) ->
+  {Bytes, D} = srcd_utils:read(4, Digest),
+  <<N:32>> = list_to_binary(Bytes),
+  {N, D}.
