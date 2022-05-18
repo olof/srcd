@@ -1,6 +1,7 @@
 -module(srcd_utils).
 
--export([cmd_split/1, hex_to_int/1, hex_to_bin_sha1/1, pipe/2]).
+-export([cmd_split/1, hex_to_int/1, bin_to_hex/1, bytes_to_hex/1,
+         hex_to_bin_sha1/1, pipe/2]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -34,6 +35,19 @@ hex_to_bin_sha1_test_() ->
   ].
 
 -endif.
+
+byte_to_hex(Byte) when Byte >= 0 andalso Byte < 256 ->
+  N = integer_to_list(Byte, 16),
+  string:lowercase(case length(N)  of
+    1 -> [$0 | N];
+    2 -> N
+  end).
+
+bin_to_hex(Bytes) ->
+  bytes_to_hex(binary_to_list(Bytes)).
+
+bytes_to_hex(Bytes) ->
+  lists:concat([byte_to_hex(Byte) || Byte <- Bytes]).
 
 cmd_split(Cmd) ->
   cmd_split(Cmd, "", false, false, []).
