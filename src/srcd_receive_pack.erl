@@ -14,7 +14,6 @@ init(Version, [Repo]) ->
   {ok, advertise, #?MODULE{repo=Repo, version=Version}}.
 
 advertise(#?MODULE{repo=Repo, version=Version} = Data) ->
-  ?LOG_NOTICE("doing receive_pack adveritse"),
   case advertisement(Repo, Version) of
     {ok, Resp} ->
       ?LOG_NOTICE("Resp: ~p", [Resp]),
@@ -25,9 +24,8 @@ advertise(#?MODULE{repo=Repo, version=Version} = Data) ->
 wait_for_input(Data) -> wait_for_input(Data, [], []).
 wait_for_input(Data, Res, Caps0) ->
   case srcd_pack:read_line() of
-    flush -> {next_state, process_lines, {Data,
-                                          lists:reverse(Res),
-                                          lists:reverse(Caps0)}};
+    flush -> {next_state, process_lines, {Data, lists:reverse(Res),
+                                                lists:reverse(Caps0)}};
     {data, Line} ->
       case Caps0 of
         [] -> [Line1, Caps] = string:split(Line, "\0"),
@@ -50,14 +48,10 @@ parse_cap(["quiet"]) -> quiet;
 parse_cap([[]]) -> skip.
 
 process_lines({#?MODULE{repo=Repo} = Data, [], Caps}) ->
-  ?LOG_NOTICE("process_line: (no lines) ~p", [{Data, Caps}]),
   {error, not_implemented};
 process_lines({#?MODULE{repo=Repo} = Data, Lines, Caps}) ->
-  ?LOG_NOTICE("process_line: ~p", [{Data, Lines, Caps}]),
   Cmds = [parse_line(Line, Caps) || Line <- Lines],
-  ?LOG_NOTICE("process_line processed: ~p", [Cmds]),
   Status = check_cmds(Repo, Cmds, Caps),
-  ?LOG_NOTICE("process_line status: ~p", [Status]),
   case Status of
     ok -> {next_state, read_packfile, {Data, Cmds}}
   end.
