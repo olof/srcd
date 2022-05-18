@@ -59,7 +59,7 @@ process_lines({#?MODULE{repo=Repo} = Data, Lines, Caps}) ->
   end.
 
 read_packfile({Data, Cmds}) ->
-  {ok, Packfile} = srcd_pack_file:read(),
+  {ok, Packfile} = srcd_packfile:read(),
   {next_state, process_packfile, {Data, Cmds, Packfile}}.
 
 process_packfile({#?MODULE{repo=Repo} = Data, Cmds, Packfile}) ->

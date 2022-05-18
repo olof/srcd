@@ -1,4 +1,4 @@
--module(srcd_pack_file).
+-module(srcd_packfile).
 -export([read/0, build/2]).
 
 -include("srcd_object.hrl").

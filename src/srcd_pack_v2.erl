@@ -78,7 +78,7 @@ fetch({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
   end.
 
 fetch_packfile(Repo, Wants, Haves) ->
-  {ok, Data} = srcd_pack_file:build(Repo, Wants),
+  {ok, Data} = srcd_packfile:build(Repo, Wants),
   ?LOG_NOTICE("fetch_packfile got ~p", [Data]),
   srcd_pack:build_pkt([
     "packfile\n",

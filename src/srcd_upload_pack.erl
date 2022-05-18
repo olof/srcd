@@ -68,7 +68,7 @@ parse_line(Line) ->
   end.
 
 fetch_packfile(Repo, Wants, Haves) ->
-  srcd_pack_file:build(Repo, Wants).
+  srcd_packfile:build(Repo, Wants).
 
 fetch_ack(Data, Repo, Wants, Haves) ->
   case Haves of
