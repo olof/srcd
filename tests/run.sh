@@ -29,7 +29,7 @@ eval `ssh-agent`
 ssh-add "$tmpd/key"
 
 sleep_t=1
-retries=5
+retries=7
 
 die_dump_log() {
 	echo Error: "$@" >&2
