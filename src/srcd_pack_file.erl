@@ -42,7 +42,7 @@ objects(Repo, Ids) -> objects(Repo, Ids, #{}, []).
 objects(_, [], _, Res) ->
   ?LOG_NOTICE("RESSS = ~p", [Res]),
   Count = length(Res),
-  Res2 = [srcd_pack_object:build(Obj) || Obj <- Res],
+  Res2 = [srcd_object:encode(Obj) || Obj <- Res],
   {Count, lists:flatten(lists:reverse(Res2))};
 objects(Repo, [Id | Ids], Seen, Res) ->
   case maps:is_key(Id, Seen) of
@@ -51,7 +51,7 @@ objects(Repo, [Id | Ids], Seen, Res) ->
       case srcd_repo:object(Repo, Id) of
         {ok, Object} ->
 	  ?LOG_NOTICE("Obj: ~p", [Object]),
-	  Deps = srcd_pack_object:deps(Object),
+	  Deps = srcd_object:deps(Object),
 	  ?LOG_NOTICE("Obj deps: ~p", [Deps]),
           objects(Repo, Deps ++ Ids, Seen#{Id => 1}, [Object | Res]);
         {error, nomatch} ->
