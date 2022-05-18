@@ -19,22 +19,21 @@ append_hash(Packfile) ->
   Packfile ++ binary_to_list(Hash).
 
 -ifdef(TEST).
--define(_test_header(Expect, Count),
-        ?_assertEqual({ok, ?MAGIC ++ [0, 0, 0, ?VERSION] ++ Expect},
-	              header(Count))).
 
-header_test_() ->
+packfile_header_test_() ->
+  Prefix = [$P, $A, $C, $K, 0, 0, 0, 2], % PackVersion = 2
   [
-    ?_test_header([0, 0, 0, 0], 0),
-    ?_test_header([0, 0, 0, 1], 1),
-    ?_test_header([0, 0, 0, 128], 128),
-    ?_test_header([0, 0, 0, 255], 255),
-    ?_test_header([0, 0, 1, 0], 256),
-    ?_test_header([0, 0, 255, 255], 65535),
-    ?_test_header([0, 255, 255, 255], 16777215),
-    ?_test_header([1, 0, 0, 0], 16777216),
-    ?_test_header([255, 255, 255, 255], 4294967295),
-    ?_assertEqual({error, too_many_objects}, header(4294967296))
+    ?_assertEqual({ok, Prefix ++ [0,0,0,0]}, build_header(0)),
+    ?_assertEqual({ok, Prefix ++ [0,0,0,1]}, build_header(1)),
+    ?_assertEqual({ok, Prefix ++ [0,0,0,128]}, build_header(128)),
+    ?_assertEqual({ok, Prefix ++ [0,0,0,255]}, build_header(255)),
+    ?_assertEqual({ok, Prefix ++ [0,0,1,0]}, build_header(256)),
+    ?_assertEqual({ok, Prefix ++ [0,0,255,255]}, build_header(65535)),
+    ?_assertEqual({ok, Prefix ++ [0,255,255,255]}, build_header(16777215)),
+    ?_assertEqual({ok, Prefix ++ [1,0,0,0]}, build_header(16777216)),
+    ?_assertEqual({ok, Prefix ++ [255,255,255,255]}, build_header(4294967295)),
+    ?_assertEqual({error, badarg}, build_header(4294967296)),
+    ?_assertEqual({error, badarg}, build_header(-1))
   ].
 -endif.
 
