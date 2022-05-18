@@ -72,15 +72,32 @@ this part yet.
 
 #### About that apps/ssh directory
 
-To be able to pass environments over ssh, I had to hack the erlang ssh
-app to be able to pass the collected envs to the ssh exec fun. This is
-the only way the ssh client will flag that it supports v2. (Perhaps I
-can force a compatible client to use v2 by assuming it to be true? Not
-tested and would probably be unwise, since we do want to support v0
-clients at some point.) I do want to upstream this changes, but
-it's a bit daunting, my changes to the ssh app is not super well
-thought-out. Perhaps opening an issue explainng what I need could be a
-start.
+I've had to fork erlang's ssh implementation during development
+of srcd for several reasons:
+
+* To be able to pass environments over ssh, I had to hack the
+  erlang ssh app to be able to pass the collected envs to the ssh
+  exec fun. This is the only way the ssh client will flag that it
+  supports v2. (Perhaps I can force a compatible client to use v2
+  by assuming it to be true? Not tested and would probably be
+  unwise, since we do want to support v0 clients at some point.)
+  I do want to upstream this changes, but it's a bit daunting, my
+  changes to the ssh app is not super well thought-out. Perhaps
+  opening an issue explainng what I need could be a start.
+
+* Byte value 3 anywhere in a stream is interpreted as `^C`; the
+  git pack protocol is binary and will by necessity sometime
+  encode a three. This handling was removed entirely. Not
+  something I would accept if I were an erlang maintainer, but
+  gives a hint that the `^C` handling probably belongs somewhere
+  else (or at least be configurable).
+
+* Improve server side error logging a little bit; when the
+  connection is killed, the error is sent on stderr *to the
+  client*. It is not logged on the server at all. At least
+  `LOG_NOTICE` when it happens (I still don't have the traceback,
+  so I sometime have to guess what "undef" or "function_clause"
+  means).
 
 Hacking
 -------
@@ -152,7 +169,8 @@ simpler.
 
 ### Test
 
-    $ rebar3 eunit
+    $ rebar3 eunit      # erlang based unit tests
+    $ ./tests/run.sh    # shell script based integration tests, using git
 
 Some tests are written; some tests even test stuff of importance,
 but it is undertested. As the codebase matures, the importance of
