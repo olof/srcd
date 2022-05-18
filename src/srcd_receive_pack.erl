@@ -53,7 +53,9 @@ process_lines({#?MODULE{repo=Repo} = Data, Lines, Caps}) ->
   Cmds = [parse_line(Line, Caps) || Line <- Lines],
   Status = check_cmds(Repo, Cmds, Caps),
   case Status of
-    ok -> {next_state, read_packfile, {Data, Cmds}}
+    ok ->
+      {ok, Flush} = srcd_pack:build_pkt([flush]),
+      {next_state, read_packfile, Flush, {Data, Cmds}}
   end.
 
 read_packfile({Data, Cmds}) ->
