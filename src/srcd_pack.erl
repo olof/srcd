@@ -31,7 +31,7 @@ advertisement(Version, Refs, []) ->
 advertisement(Version, Refs, Caps) ->
   [Top | RefLines] = reflines(Refs),
   CapLine = string:join([Top, [0], capstring(Caps)], ""),
-  build_pkt(prepend_version(Version, [CapLine | RefLines ++ [flush]])).
+  build_pkt(prepend_version(Version, [CapLine | (RefLines ++ [flush])])).
 
 prepend_version(0, Pkt) -> Pkt;
 prepend_version(1, Pkt) -> ["version 1\n"|Pkt];
