@@ -14,24 +14,35 @@ things work:
  * transport protocols supported: ssh
  * git protocol supported: a little bit of v0, a little bit of v2
  * record based definition of git objects (and pack encoding of these)
+ * packfile and object parsing
  * ls-refs working
  * fetch working, partially
    * can clone repos
    * can fetch repos with no change needed
    * can fetch repos with new objects
- * packfile and object parsing
+ * push working, partially
+   * only simples object types
 
 When I say "working" is that simple situations have been seen to work.
 
 Obvious missing things:
 
- * Write operations (push) (ongoing!)
+ * Persistance of changes (write to disk; survive restarts)
+   * Currently, only hardcoded, in-memory repos are supported.
+   * sqlite, mnesia, .git directory structure
+   * just act as a git proxy, persist it in a remote repo?
  * Authentication (ssh key manager / tie in to SSO)
- * Git tags
- * Delete (maybe I don't want to support this? But I probably do;
-   perhaps implemented as soft deletes)
- * Shallow clones
- * Delta objects ????
+ * Required object types:
+   * Tags
+   * `ref_delta` objects
+ * Optional protocol [capabilities][git-caps]:
+   * `ofs_delta` objects
+   * Thin packs
+   * Delete references
+   * Shallow clones
+   * status-reports
+
+[git-caps]: https://github.com/git/git/blob/master/Documentation/technical/protocol-capabilities.txt
 
 ### Things i may want to do with this.
 I don't know why I wrote this, but I do intend to make use of it!
