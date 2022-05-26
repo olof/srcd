@@ -5,9 +5,6 @@
 
 -record(?MODULE, {name, head="refs/heads/master", refs=[], objects=#{}}).
 -define(gproc_name(Repo), {via, gproc, {n, l, {?MODULE, Repo}}}).
--define(call(Repo, Msg), gen_server:call(?gproc_name(Repo), Msg)).
--define(reply(Resp, State), {reply, Resp, State}).
--define(reply_ok(Resp, State), {reply, {ok, Resp}, State}).
 
 -include_lib("kernel/include/logger.hrl").
 
@@ -55,14 +52,14 @@ handle_cast(_, State) -> {noreply, State}.
 get_pid(Repo) -> gproc:lookup_local_name({?MODULE, Repo}).
 exists(Repo) -> is_pid(get_pid(Repo)).
 
--define(exists(AndThen), case exists(Repo) of
-  true -> AndThen;
+-define(call(Repo, Msg), case exists(Repo) of
+  true -> gen_server:call(?gproc_name(Repo), Msg);
   false -> {error, no_such_repo}
 end).
 
-default_branch(Repo)    -> ?exists(?call(Repo, head)).
-head(Repo)              -> ?exists(?call(Repo, {head, "HEAD"})).
-head(Repo, Ref)         -> ?exists(?call(Repo, {head, Ref})).
-refs(Repo)              -> ?exists(?call(Repo, refs)).
-object(Repo, Id)        -> ?exists(?call(Repo, {object, Id})).
-exists(Repo, Id)        -> ?exists(?call(Repo, {exists, Id})).
+default_branch(Repo)            -> ?call(Repo, head).
+head(Repo)                      -> ?call(Repo, {head, "HEAD"}).
+head(Repo, Ref)                 -> ?call(Repo, {head, Ref}).
+refs(Repo)                      -> ?call(Repo, refs).
+object(Repo, Id)                -> ?call(Repo, {object, Id}).
+exists(Repo, Id)                -> ?call(Repo, {exists, Id}).
