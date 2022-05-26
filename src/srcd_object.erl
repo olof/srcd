@@ -48,9 +48,7 @@ read(Digest1) ->
   Digest = crypto:hash_update(Digest0, Compressed),
   ObjDigest = crypto:hash_update(ObjDigest1, Object),
   {ok, Parsed} = srcd_object:parse(Type, Object),
-  ?LOG_NOTICE("object parsed", []),
   H = crypto:hash_final(ObjDigest),
-  ?LOG_NOTICE("object parsed: hash: ~p", [H]),
   ?LOG_NOTICE("object parsed: hash: ~p", [srcd_utils:bin_to_hex(H)]),
   {ok, {Parsed, srcd_utils:bin_to_hex(H)}, Digest}.
 
@@ -66,9 +64,7 @@ read_object_header(Digest) ->
   end.
 read_object_header(Digest, N0, Bits, Type) ->
   {[Byte], D} = srcd_utils:read(1, Digest),
-  ?LOG_NOTICE("continuation pos ~p, N=~p, got byte: ~p", [Bits, N0, Byte]),
   N = N0 + (Byte band 127 bsl Bits),
-  ?LOG_NOTICE("new N: ~p", [N]),
   case Byte band 128 of
     0 -> {Type, N, D};
     128 -> read_object_header(D, N, Bits+7, Type)
@@ -136,7 +132,6 @@ parse(tree, Object) ->
     ]
   }};
 parse(commit, Object) ->
-  ?LOG_NOTICE("I got a commit to parse: ~p", [Object]),
   {Head, Msg} = parse_commit(Object),
 
   ?LOG_NOTICE("Commit header: ~p", [Head]),
@@ -161,13 +156,13 @@ parse_commit(Object) ->
   Head = parse_commit_head(Head0),
   {Head, Msg}.
 
+deps(#object{data=D}) -> deps(D);
 deps(#blob{}) -> [];
 deps(#commit{tree=Tree, parents=Parents}) -> [Tree|Parents];
 deps(#tree{items=Items}) -> [Oid || #tree_node{object=Oid} <- Items].
 
 parse_commit_head(Head) ->
   Lines = string:split(Head, "\n", all),
-  ?LOG_NOTICE("Commit head lines: ~p", [Lines]),
   [parse_commit_head_line(Line) || Line <- Lines].
 
 parse_commit_head_line(Line) ->
