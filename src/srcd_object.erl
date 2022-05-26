@@ -210,6 +210,8 @@ commit_author_line(#commit{author=Author}) ->
 commit_committer_line(#commit{committer=Committer}) ->
   ["committer " ++ format_author(Committer)].
 
+format_author(Stamp = #stamp{time=T}) when is_list(T) ->
+  format_author(Stamp#stamp{time=list_to_integer(T)});
 format_author(Stamp = #stamp{name=Name, email=undefined, time=T, tz=Tz}) ->
   lists:flatten(io_lib:format("~s ~b ~s", [Name, T, Tz]));
 format_author(Stamp = #stamp{name=Name, email=Email, time=T, tz=Tz}) ->
@@ -221,6 +223,13 @@ format_author(Stamp = #stamp{name=Name, email=Email, time=T, tz=Tz}) ->
   name="Unit Test",
   email="ceo@example.com",
   time=1651498600,
+  tz="+0200"
+}).
+
+-define(STAMP_STR_TIME, #stamp{
+  name="Unit Test",
+  email="ceo@example.com",
+  time="1651498600",
   tz="+0200"
 }).
 
@@ -344,6 +353,23 @@ commit_build_three_parents_test_() ->
       deps(Commit)
     )
   ].
+
+commit_time_as_str_test_() ->
+  IntTime = #commit{
+    tree="4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+    author=?STAMP,
+    committer=?STAMP,
+    parents=["4bd8bdbdc6661187350f6e6141577c3d7cda1ac6"],
+    msg="test\n"
+  },
+  StrTime = #commit{
+    tree="4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+    author=?STAMP_STR_TIME,
+    committer=?STAMP_STR_TIME,
+    parents=["4bd8bdbdc6661187350f6e6141577c3d7cda1ac6"],
+    msg="test\n"
+  },
+  [?_assertEqual(encode(IntTime), encode(StrTime))].
 
 tree_empty_test_() ->
   [
