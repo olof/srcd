@@ -31,6 +31,10 @@ init([]) ->
         start => {srcd_repo, start_link, ["/empty.git"]}
       },
       #{
+        id => test_empty_repo,
+        start => {srcd_repo, start_link, ["/pushtest.git"]}
+      },
+      #{
         id => sample_repo_2,
         start => {srcd_repo, start_link, [
           "/no-content.git",

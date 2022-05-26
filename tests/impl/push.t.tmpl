@@ -1,4 +1,4 @@
-plan 1
+plan 3
 REPO_BASE="ssh://${USER}@$HOST:${PORT}"
 
 export GIT_COMMITTER_NAME="qa tester"
@@ -8,7 +8,7 @@ export GIT_AUTHOR_NAME="$GIT_COMMITTER_NAME"
 export GIT_AUTHOR_EMAIL="$GIT_COMMITTER_EMAIL"
 export GIT_AUTHOR_DATE="$GIT_COMMITTER_DATE"
 
-git clone -q "$REPO_BASE/empty.git" repo ||
+git clone -q "$REPO_BASE/pushtest.git" repo ||
 	exit 1
 
 cd repo
@@ -17,6 +17,11 @@ git add file
 git commit -m message || exit 1
 git show >&2
 
-# step 1: accept a push, but do nothing with it. try to fool git that it works
+rev="$(cat .git/refs/heads/master)"
+
+is "$(git ls-remote -q)" "" "git repo is empty"
 git push -vv origin HEAD:refs/heads/master
 is $? 0 "empty.git: push new commit"
+
+is "$(git ls-remote -q origin refs/heads/master | cut -f1)" "$rev" \
+   "new git repo head"

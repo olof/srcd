@@ -1,7 +1,7 @@
 -module(srcd_receive_pack).
 -export([callback_mode/0, init/2]).
 -export([advertise/1, wait_for_input/1, read_packfile/1,
-         process_packfile/1, process_lines/1]).
+         verify_packfile/1, process_cmds/1, process_lines/1]).
 -include_lib("kernel/include/logger.hrl").
 
 -record(?MODULE, {repo, version=0}).
@@ -60,14 +60,20 @@ process_lines({#?MODULE{repo=Repo} = Data, Lines, Caps}) ->
 
 read_packfile({Data, Cmds}) ->
   {ok, Packfile} = srcd_packfile:read(),
-  {next_state, process_packfile, {Data, Cmds, Packfile}}.
+  {next_state, verify_packfile, {Data, Cmds, Packfile}}.
 
-process_packfile({#?MODULE{repo=Repo} = Data, Cmds, Packfile}) ->
-  % TODO:
-  %  - verify that packfile includes all necessary references
-  %  - update Repo references, i.e. apply Cmds
-  ?LOG_NOTICE("I should verify the packfile here, but not yet implemented"),
-  ok.
+verify_packfile({#?MODULE{repo=Repo} = Data, Cmds, Packfile}) ->
+  Oids = srcd_packfile:object_ids(Packfile),
+  Deps = srcd_packfile:object_deps(Packfile),
+  Unresolved = [D || D <- Deps, not lists:member(D, Oids)],
+  Missing = [D || D <- Unresolved, not srcd_repo:exists(Repo, D)],
+  case Missing of
+    [] -> {next_state, process_cmds, {Data, Cmds, Packfile}};
+    Oids -> {error, "incomplete packfile"}
+  end.
+
+process_cmds({#?MODULE{repo=Repo} = Data, Cmds, Packfile}) ->
+  srcd_repo:write(Repo, Cmds, Packfile).
 
 check_cmds(Repo, [], Caps) -> ok;
 check_cmds(Repo, [Cmd|Cmds], Caps) ->
