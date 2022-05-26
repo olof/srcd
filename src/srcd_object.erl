@@ -50,7 +50,7 @@ read(Digest1) ->
   {ok, Parsed} = srcd_object:parse(Type, Object),
   H = crypto:hash_final(ObjDigest),
   ?LOG_NOTICE("object parsed: hash: ~p", [srcd_utils:bin_to_hex(H)]),
-  {ok, {Parsed, srcd_utils:bin_to_hex(H)}, Digest}.
+  {ok, #object{data=Parsed, id=srcd_utils:bin_to_hex(H)}, Digest}.
 
 read_object_header(Digest) ->
   {[Byte], D} = srcd_utils:read(1, Digest),
