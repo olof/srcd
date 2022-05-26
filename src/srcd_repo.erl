@@ -24,7 +24,7 @@ init([Repo, Refs0, Objects]) ->
 
 build_index(Refs, Objects) -> build_index(Refs, Objects, #{}).
 build_index(Refs, [], Res) -> {ok, Res};
-build_index(Refs, [{Id, Data}|Objects], Res) ->
+build_index(Refs, [#object{id=Id, data=Data}|Objects], Res) ->
   build_index(Refs, Objects, Res#{Id => Data}).
 
 handle_call(head, _, #?MODULE{head=Ref} = State) ->
