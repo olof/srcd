@@ -416,7 +416,10 @@ default(server) ->
 
       exec =>
           #{default => undefined,
-            chk => fun({direct, V}) ->  check_function1(V) orelse check_function2(V) orelse check_function3(V) orelse check_function4(V);
+            chk => fun({direct, V}) ->  check_function1(V) orelse
+                                        check_function2(V) orelse
+                                        check_function3(V) orelse
+                                        check_function4(V);
                       (disabled) -> true;
                       %% Compatibility (undocumented):
                       ({M,F,A}) -> is_atom(M) andalso is_atom(F) andalso is_list(A);

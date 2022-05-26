@@ -52,7 +52,7 @@
 	  buf,
 	  shell,
 	  exec,
-	  env
+	  env = #{}
 	 }).
 
 -define(EXEC_ERROR_STATUS, 255).
@@ -67,9 +67,9 @@
 %% Description: Initiates the CLI
 %%--------------------------------------------------------------------
 init([Shell, Exec]) ->
-    {ok, #state{shell = Shell, exec = Exec, env = #{}}};
+    {ok, #state{shell = Shell, exec = Exec}};
 init([Shell]) ->
-    {ok, #state{shell = Shell, env = #{}}}.
+    {ok, #state{shell = Shell}}.
 
 %%--------------------------------------------------------------------
 %% Function: handle_ssh_msg(Args) -> {ok, State} | {stop, ChannelId, State}
@@ -102,15 +102,14 @@ handle_ssh_msg({ssh_cm, ConnectionHandler,
     {ok, State};
 
 handle_ssh_msg({ssh_cm, ConnectionHandler,
-                 {env, ChannelId, WantReply, Var, Value}},
-               State = #state{env=Env0, encoding=Enc0}) ->
+                {env, ChannelId, WantReply, Var, Value}},
+               State = #state{env=Env, encoding=Enc0}) ->
     %% We accept environment variables from the client, but we can't set them
     %% as OS environment variables on our end, since that would affect the whole
-    %% erlang system (since it lives in one OS process). We instead collect the
+    %% erlang system (because it lives in one OS process). We instead collect the
     %% variables, and pass them along when executing or starting shells.
-    Env = maps:merge(Env0, #{Var => Value}),
     ssh_connection:reply_request(ConnectionHandler,
-				 WantReply, true, ChannelId),
+                                 WantReply, success, ChannelId),
 
     %% https://pubs.opengroup.org/onlinepubs/7908799/xbd/envvar.html
     %% LANG
@@ -165,7 +164,7 @@ handle_ssh_msg({ssh_cm, ConnectionHandler,
             _ ->
                 Enc0
         end,
-    {ok, State#state{encoding=Enc, env=Env}};
+    {ok, State#state{encoding=Enc, env=Env#{Var => Value}}};
 
 handle_ssh_msg({ssh_cm, ConnectionHandler,
 	    {window_change, ChannelId, Width, Height, PixWidth, PixHeight}},
@@ -183,9 +182,8 @@ handle_ssh_msg({ssh_cm, ConnectionHandler,  {shell, ChannelId, WantReply}}, #sta
     ssh_connection:exit_status(ConnectionHandler, ChannelId, ?EXEC_ERROR_STATUS),
     ssh_connection:send_eof(ConnectionHandler, ChannelId),
     {stop, ChannelId, State#state{channel = ChannelId, cm = ConnectionHandler}};
-handle_ssh_msg({ssh_cm, ConnectionHandler,  {shell, ChannelId, WantReply}},
-               #{encoding := Enc} = State0) ->
-    State = case Enc of
+handle_ssh_msg({ssh_cm, ConnectionHandler,  {shell, ChannelId, WantReply}}, State0) ->
+    State = case State0#state.encoding of
                 undefined -> State0#state{encoding = utf8};
                 _-> State0
             end,
@@ -708,7 +706,7 @@ eval({error,Error}) ->
     {error, Error}.
 
 %%--------------------------------------------------------------------
-exec_direct(ConnectionHandler, ChannelId, Cmd, ExecSpec, WantReply, #state{env=Env} = State) ->
+exec_direct(ConnectionHandler, ChannelId, Cmd, ExecSpec, WantReply, State) ->
     Fun =
         fun() ->
                 if
@@ -731,7 +729,7 @@ exec_direct(ConnectionHandler, ChannelId, Cmd, ExecSpec, WantReply, #state{env=E
                             ssh_connection_handler:connection_info(ConnectionHandler, [peer, user]),
                         User = proplists:get_value(user, ConnectionInfo),
                         {_, PeerAddr} = proplists:get_value(peer, ConnectionInfo),
-                        ExecSpec(Cmd, User, PeerAddr, Env);
+                        ExecSpec(Cmd, User, PeerAddr, State#state.env);
 
                     true ->
                         {error, "Bad exec fun in server"}

@@ -342,10 +342,11 @@
 
 -type exec_daemon_option()      :: {exec, exec_spec()} .
 -type exec_spec()               :: {direct, exec_fun()} | disabled | deprecated_exec_opt().
--type exec_fun()                :: 'exec_fun/1'() | 'exec_fun/2'() | 'exec_fun/3'().
+-type exec_fun()                :: 'exec_fun/1'() | 'exec_fun/2'() | 'exec_fun/3'() | 'exec_fun/4'.
 -type 'exec_fun/1'() :: fun((Cmd::string()) -> exec_result()) .
 -type 'exec_fun/2'() :: fun((Cmd::string(), User::string()) -> exec_result()) .
 -type 'exec_fun/3'() :: fun((Cmd::string(), User::string(), ClientAddr::ip_port()) -> exec_result()) .
+-type 'exec_fun/4'() :: fun((Cmd::string(), User::string(), ClientAddr::ip_port(), Env::map()) -> exec_result()) .
 -type exec_result()  :: {ok,Result::term()} | {error,Reason::term()} .
 -type deprecated_exec_opt() :: fun() | mod_fun_args() .
 
