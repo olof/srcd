@@ -185,10 +185,16 @@ parse_author_stamp(Val) ->
   [Head, Tz] = string:split(Val, " ", trailing),
   [User, Time] = string:split(Head, " ", trailing),
 
+  % TODO: parse User into Name and Email.
+  %       Currently, User usually looks like "Olof J <test@example.com>"
+  %       We want: Name = "Olof J" and Email = "test@example.com"
+  %       We can't assume User to always look like that.
+  %       Using the whole User as name works because we don't change
+  %       it at all, so the sha1 still matches.
   #stamp{
-    name="olof",
-    email="olof@example.com",
-    time=Time,
+    name=User,
+    %email="olof@example.com",
+    time=list_to_integer(Time),
     tz=Tz
   }.
 
@@ -204,6 +210,8 @@ commit_author_line(#commit{author=Author}) ->
 commit_committer_line(#commit{committer=Committer}) ->
   ["committer " ++ format_author(Committer)].
 
+format_author(Stamp = #stamp{name=Name, email=undefined, time=T, tz=Tz}) ->
+  lists:flatten(io_lib:format("~s ~b ~s", [Name, T, Tz]));
 format_author(Stamp = #stamp{name=Name, email=Email, time=T, tz=Tz}) ->
   lists:flatten(io_lib:format("~s <~s> ~b ~s", [Name, Email, T, Tz])).
 
