@@ -1,5 +1,5 @@
 -module(srcd_packfile).
--export([read/0, build/2]).
+-export([read/0, build/2, object_ids/1, object_deps/1]).
 
 -include("srcd_object.hrl").
 -include_lib("kernel/include/logger.hrl").
@@ -26,6 +26,16 @@ build(Repo, Ids) ->
     {ok, Header} -> {ok, append_hash(Header ++ Objects)};
     {error, Err} -> {error, Err}
   end.
+
+object_ids(#pack{objects=Objects}) -> object_ids(Objects, []).
+object_ids([], ObjectIds) -> lists:reverse(ObjectIds);
+object_ids([#object{id=Id}|Objects], ObjectIds) ->
+  object_ids(Objects, [Id|ObjectIds]).
+
+object_deps(#pack{objects=Objects}) -> object_deps(Objects, []).
+object_deps([], ObjectIds) -> ObjectIds;
+object_deps([#object{data=Obj} | Objects], ObjectIds) ->
+  object_deps(Objects, lists:concat([ObjectIds, srcd_object:deps(Obj)])).
 
 read_packfile_magic(#pack{} = State) ->
   case srcd_utils:read(4, crypto:hash_init(sha)) of
