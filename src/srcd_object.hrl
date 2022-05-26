@@ -1,6 +1,7 @@
 -define(PACK_MAGIC, "PACK").
 -define(PACK_VERSION, 2).
 
+-record(object, {id, data}).
 -record(stamp, {name, email, time, tz}).
 -record(commit, {tree, author, committer, msg, parents=[]}).
 -record(tree, {items}).

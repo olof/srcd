@@ -79,6 +79,7 @@ read_packfile_signature(#pack{hash=D} = State) ->
                {error, packfile_hash_fail}
   end.
 
+encode(#object{id=Id, data=Data}) -> encode(Data);
 encode(#blob{data=Data}) -> {blob, Data};
 encode(#commit{msg=Msg} = Commit) ->
   CommitHeader = string:join(lists:concat([
@@ -108,6 +109,7 @@ header_tail(Prefix, Rem) when Rem < 128 -> Prefix ++ [Rem];
 header_tail(Prefix, Rem) ->
   header_tail(Prefix ++ [1 bsl 7 + Rem band 127], Rem bsr 7).
 
+canon(#object{data=D}) -> canon(D);
 canon(#blob{} = D) -> canon(blob, D);
 canon(#tree{} = D) -> canon(tree, D);
 canon(#commit{} = D) -> canon(commit, D).
