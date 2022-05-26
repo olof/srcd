@@ -97,17 +97,18 @@ of srcd for several reasons:
 
 * Byte value 3 anywhere in a stream is interpreted as `^C`; the
   git pack protocol is binary and will by necessity sometime
-  encode a three. This handling was removed entirely. Not
-  something I would accept if I were an erlang maintainer, but
-  gives a hint that the `^C` handling probably belongs somewhere
-  else (or at least be configurable).
+  encode a three. I removed this handling entirely; that's not a
+  change I would accept as-is if I were an erlang maintainer, but
+  maybe gives a hint that the `^C` handling probably belongs
+  somewhere else (or at least be configurable).
 
 * Improve server side error logging a little bit; when the
   connection is killed, the error is sent on stderr *to the
   client*. It is not logged on the server at all. At least
   `LOG_NOTICE` when it happens (I still don't have the traceback,
   so I sometime have to guess what "undef" or "function_clause"
-  means).
+  means). I also really don't want this info sent to the client,
+  but that's still happening for now.
 
 Hacking
 -------
