@@ -102,10 +102,7 @@ parse_line(Line, Caps) ->
 
 advertisement(Repo, Version) ->
   Refs = case srcd_repo:refs(Repo) of
-    {ok, []} ->
-      [
-        {"capabilities^{}", "0000000000000000000000000000000000000000"}
-      ];
+    {ok, []}    -> [{"capabilities^{}", ?OID_ZERO}];
     {ok, Refs0} ->
       {ok, Head} = srcd_repo:default_branch(Repo),
       case proplists:get_value(Head, Refs0) of
