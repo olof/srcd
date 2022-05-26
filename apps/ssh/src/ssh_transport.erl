@@ -49,7 +49,6 @@
 	 handle_kex_ecdh_init/2,
 	 handle_kex_ecdh_reply/2,
          parallell_gen_key/1,
-	 extract_public_key/1,
 	 ssh_packet/2, pack/2,
          valid_key_sha_alg/3,
 	 sign/3, sign/4,
@@ -61,6 +60,8 @@
 
 -behaviour(ssh_dbg).
 -export([ssh_dbg_trace_points/0, ssh_dbg_flags/1, ssh_dbg_on/1, ssh_dbg_off/1, ssh_dbg_format/2]).
+
+-define(MIN_DH_KEY_SIZE, 400).
 
 %%% For test suites
 -export([pack/3, adjust_algs_for_peer_version/2]).
@@ -553,7 +554,7 @@ handle_kexdh_init(#ssh_msg_kexdh_init{e = E},
 	    {Public, Private} = generate_key(dh, [P,G,2*Sz]),
 	    K = compute_key(dh, E, Private, [P,G]),
 	    MyPrivHostKey = get_host_key(SignAlg, Opts),
-	    MyPubHostKey = extract_public_key(MyPrivHostKey),
+	    MyPubHostKey = ssh_file:extract_public_key(MyPrivHostKey),
             H = kex_hash(Ssh0, MyPubHostKey, sha(Kex), {E,Public,K}),
             case sign(H, SignAlg, MyPrivHostKey, Ssh0) of
                 {ok,H_SIG} ->
@@ -705,7 +706,7 @@ handle_kex_dh_gex_init(#ssh_msg_kex_dh_gex_init{e = E},
 	    if
 		1<K, K<(P-1) ->
 		    MyPrivHostKey = get_host_key(SignAlg, Opts),
-		    MyPubHostKey = extract_public_key(MyPrivHostKey),
+		    MyPubHostKey = ssh_file:extract_public_key(MyPrivHostKey),
                     H = kex_hash(Ssh0, MyPubHostKey, sha(Kex), {Min,NBits,Max,P,G,E,Public,K}),
                     case sign(H, SignAlg, MyPrivHostKey, Ssh0) of
                         {ok,H_SIG} ->
@@ -788,7 +789,7 @@ handle_kex_ecdh_init(#ssh_msg_kex_ecdh_init{q_c = PeerPublic},
     of
 	K ->
 	    MyPrivHostKey = get_host_key(SignAlg, Opts),
-	    MyPubHostKey = extract_public_key(MyPrivHostKey),
+	    MyPubHostKey = ssh_file:extract_public_key(MyPrivHostKey),
             H = kex_hash(Ssh0, MyPubHostKey, sha(Curve), {PeerPublic, MyPublic, K}),
             case sign(H, SignAlg, MyPrivHostKey, Ssh0) of
                 {ok,H_SIG} ->
@@ -925,35 +926,6 @@ call_KeyCb(F, Args, Opts) ->
     {KeyCb,KeyCbOpts} = ?GET_OPT(key_cb, Opts),
     UserOpts = ?GET_OPT(key_cb_options, Opts),
     apply(KeyCb, F, Args ++ [[{key_cb_private,KeyCbOpts}|UserOpts]]).
-
-extract_public_key(#'RSAPrivateKey'{modulus = N, publicExponent = E}) ->
-    #'RSAPublicKey'{modulus = N, publicExponent = E};
-extract_public_key(#'DSAPrivateKey'{y = Y, p = P, q = Q, g = G}) ->
-    {Y,  #'Dss-Parms'{p=P, q=Q, g=G}};
-extract_public_key(#'ECPrivateKey'{parameters = {namedCurve,OID},
-				   publicKey = Pub0, privateKey = Priv}) when
-      OID == ?'id-Ed25519' orelse
-      OID == ?'id-Ed448' ->
-    case {pubkey_cert_records:namedCurves(OID), Pub0} of
-        {Alg, asn1_NOVALUE} ->
-            %% If we're missing the public key, we can create it with
-            %% the private key.
-            {Pub, Priv} = crypto:generate_key(eddsa, Alg, Priv),
-            {#'ECPoint'{point=Pub}, {namedCurve,OID}};
-        {_Alg, Pub} ->
-            {#'ECPoint'{point=Pub}, {namedCurve,OID}}
-    end;
-extract_public_key(#'ECPrivateKey'{parameters = {namedCurve,OID},
-				   publicKey = Q}) when is_tuple(OID) ->
-    {#'ECPoint'{point=Q}, {namedCurve,OID}};
-extract_public_key(#{engine:=_, key_id:=_, algorithm:=Alg} = M) ->
-    case {Alg, crypto:privkey_to_pubkey(Alg, M)} of
-        {rsa, [E,N]} ->
-            #'RSAPublicKey'{modulus = N, publicExponent = E};
-        {dss, [P,Q,G,Y]} ->
-            {Y, #'Dss-Parms'{p=P, q=Q, g=G}}
-    end.
-
 
 
 verify_host_key(#ssh{algorithms=Alg}=SSH, PublicKey, Digest, {AlgStr,Signature}) ->
@@ -2164,10 +2136,10 @@ parallell_gen_key(Ssh = #ssh{keyex_key = {x, {G, P}},
     Ssh#ssh{keyex_key = {{Private, Public}, {G, P}}}.
 
 
-generate_key(ecdh = Algorithm, Args) ->
-    crypto:generate_key(Algorithm, Args);
-generate_key(Algorithm, Args) ->
-    {Public,Private} = crypto:generate_key(Algorithm, Args),
+generate_key(ecdh, Args) ->
+    crypto:generate_key(ecdh, Args);
+generate_key(dh, [P,G,Sz2]) ->
+    {Public,Private} = crypto:generate_key(dh, [P, G, max(Sz2,?MIN_DH_KEY_SIZE)] ),
     {crypto:bytes_to_integer(Public), crypto:bytes_to_integer(Private)}.
 
 
