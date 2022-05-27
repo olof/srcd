@@ -50,13 +50,14 @@ I think git (the tool) is well designed in how it can easily fit
 in a both server and client role, and using that to build any git
 service would be easy.
 
-We have also github's own erlgitd, which even saw production use
-for a short while if I understand it correctly. But it only
-serves git:// (and as such is read only). And when I studied it,
-I realized it only execs git (the tool). Awww, man, erlang as a
-cgi shell... Wouldn't erlang exceed on all parts related to being
-a git daemon? But git does a lot, so it really makes sense to rely
-on it. Anyways...
+When it comes to git and erlang, we have also github's own
+[egtid][egitd], which even saw production use for a short while
+if I understand it correctly. But it only serves git:// (and as
+such is read only). And when I studied it, I realized it only
+execs git (the tool). Awww, man, erlang as a cgi shell...
+Wouldn't erlang exceed on all parts related to being a git
+daemon? But git does a lot, so it really makes sense to rely on
+it. Anyways...
 
 So, the goal of this then? I have some reachable goals, where I
 intend to use it to keep application state and sync it over ssh
@@ -72,6 +73,8 @@ over http. We'll also want hook support, so that we can trigger
 these builds (and more, like updating DNS zonedata) on push.
 These things (except for hooks) may not necessarily be part of
 this repo directly.
+
+[erlgitd]: https://github.com/mojombo/egitd
 
 ### ssh
 
@@ -109,6 +112,11 @@ of srcd for several reasons:
   so I sometime have to guess what "undef" or "function_clause"
   means). I also really don't want this info sent to the client,
   but that's still happening for now.
+
+These changes are limited to the `ssh_cli` and `ssh_options`
+modules, but because of how erlang releases work, only
+incorporating these modules in my application will cause a
+conflict. This is why I have vendored the whole ssh app.
 
 Hacking
 -------
