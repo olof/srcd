@@ -1,5 +1,5 @@
 -module(srcd_object).
--export([read/1, parse/1, parse/2, deps/1, pack/1, encode/1, canon/1, type_id/1, type_name/1]).
+-export([read/1, read/2, parse/1, parse/2, deps/1, pack/1, encode/1, canon/1, type_id/1, type_name/1]).
 
 -include_lib("kernel/include/logger.hrl").
 -include("srcd_object.hrl").
@@ -27,8 +27,9 @@ type_name(Id) ->
     7 -> ref_delta
   end.
 
-read(Digest1) ->
-  {Type, Length, Digest0} = read_object_header(Digest1),
+read(Digest) -> read(standard_io, Digest).
+read(Fh, Digest1) ->
+  {Type, Length, Digest0} = read_object_header(Fh, Digest1),
   ObjDigest1 = crypto:hash_update(crypto:hash_init(sha), lists:concat([
     atom_to_list(Type), " ", integer_to_list(Length), "\0"
   ])),
@@ -43,7 +44,7 @@ read(Digest1) ->
   %   stop reading?)
   % What does git do? I guess it relies on it having control over the zlib
   % implementation, but haven't verified.
-  {ok, _, Object, Compressed} = srcd_zlib:inflate(standard_io),
+  {ok, _, Object, Compressed} = srcd_zlib:inflate(Fh),
   Length = length(Object),
   Digest = crypto:hash_update(Digest0, Compressed),
   ObjDigest = crypto:hash_update(ObjDigest1, Object),
@@ -52,22 +53,22 @@ read(Digest1) ->
   ?LOG_NOTICE("object parsed: hash: ~p", [srcd_utils:bin_to_hex(H)]),
   {ok, #object{data=Parsed, id=srcd_utils:bin_to_hex(H)}, Digest}.
 
-read_object_header(Digest) ->
-  {[Byte], D} = srcd_utils:read(1, Digest),
+read_object_header(Fh, Digest) ->
+  {[Byte], D} = srcd_utils:read(Fh, 1, Digest),
   ?LOG_NOTICE("initial object header byte ~p", [Byte]),
   Type = srcd_object:type_name(Byte band 112 bsr 4),
   ?LOG_NOTICE("initial object header type ~p", [Type]),
   N = Byte band 15,
   case Byte band 128 of
     0 -> {Type, N, D};
-    128 -> read_object_header(D, N, 4, Type)
+    128 -> read_object_header(Fh, D, N, 4, Type)
   end.
-read_object_header(Digest, N0, Bits, Type) ->
-  {[Byte], D} = srcd_utils:read(1, Digest),
+read_object_header(Fh, Digest, N0, Bits, Type) ->
+  {[Byte], D} = srcd_utils:read(Fh, 1, Digest),
   N = N0 + (Byte band 127 bsl Bits),
   case Byte band 128 of
     0 -> {Type, N, D};
-    128 -> read_object_header(D, N, Bits+7, Type)
+    128 -> read_object_header(Fh, D, N, Bits+7, Type)
   end.
 
 read_packfile_signature(#pack{hash=D} = State) ->
