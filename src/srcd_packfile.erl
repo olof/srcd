@@ -1,5 +1,5 @@
 -module(srcd_packfile).
--export([read/0, build/2, object_ids/1, object_deps/1]).
+-export([read/0, read/1, build/2, object_ids/1, object_deps/1]).
 
 -include("srcd_object.hrl").
 -include_lib("kernel/include/logger.hrl").
@@ -10,8 +10,9 @@
 
 -define(state_funwrap(F), fun (State) -> F(State) end).
 
-read() ->
-  srcd_utils:pipe(#pack{}, [
+read() -> read(standard_io).
+read(IoDevice) ->
+  srcd_utils:pipe({IoDevice, #pack{}}, [
     ?state_funwrap(read_packfile_magic),
     ?state_funwrap(read_packfile_version),
     ?state_funwrap(read_packfile_object_count),
@@ -37,34 +38,34 @@ object_deps([], ObjectIds) -> ObjectIds;
 object_deps([#object{data=Obj} | Objects], ObjectIds) ->
   object_deps(Objects, lists:concat([ObjectIds, srcd_object:deps(Obj)])).
 
-read_packfile_magic(#pack{} = State) ->
-  case srcd_utils:read(4, crypto:hash_init(sha)) of
-    {"PACK", D} -> {ok, State#pack{hash=D}};
+read_packfile_magic({IoDevice, #pack{} = State}) ->
+  case srcd_utils:read(IoDevice, 4, crypto:hash_init(sha)) of
+    {"PACK", D} -> {ok, {IoDevice, State#pack{hash=D}}};
     Unknown -> {error, {bad_magic, Unknown}}
   end.
 
-read_packfile_version(#pack{hash=Digest} = State) ->
-  case srcd_utils:read_u32(Digest) of
-    {2, D} -> {ok, State#pack{version=2, hash=D}};
+read_packfile_version({IoDevice, #pack{hash=Digest} = State}) ->
+  case srcd_utils:read_u32(IoDevice, Digest) of
+    {2, D} -> {ok, {IoDevice, State#pack{version=2, hash=D}}};
     _ -> {error, unsupported_packfile_version}
   end.
 
-read_packfile_object_count(#pack{hash=Digest} = State) ->
-  {Count, D} = srcd_utils:read_u32(Digest),
-  {ok, State#pack{count=Count, hash=D}}.
+read_packfile_object_count({IoDevice, #pack{hash=Digest} = State}) ->
+  {Count, D} = srcd_utils:read_u32(IoDevice, Digest),
+  {ok, {IoDevice, State#pack{count=Count, hash=D}}}.
 
-read_packfile_objects(#pack{count=Count, hash=Digest} = State) ->
-  {ok, Objects, D} = read_packfile_objects(Digest, Count, []),
-  {ok, State#pack{objects=Objects, hash=D}}.
-read_packfile_objects(Digest, 0, Res) -> {ok, lists:reverse(Res), Digest};
-read_packfile_objects(Digest, Count, Res) ->
-  {ok, Object, D} = srcd_object:read(Digest),
+read_packfile_objects({IoDevice, #pack{count=Count, hash=Digest} = State}) ->
+  {ok, Objects, D} = read_packfile_objects(IoDevice, Digest, Count, []),
+  {ok, {IoDevice, State#pack{objects=Objects, hash=D}}}.
+read_packfile_objects(_, Digest, 0, Res) -> {ok, lists:reverse(Res), Digest};
+read_packfile_objects(IoDevice, Digest, Count, Res) ->
+  {ok, Object, D} = srcd_object:read(IoDevice, Digest),
   ?LOG_NOTICE("Object unpacked (~p remaining): ~p", [Count-1, Object]),
-  read_packfile_objects(D, Count-1, [Object | Res]).
+  read_packfile_objects(IoDevice, D, Count-1, [Object | Res]).
 
-read_packfile_signature(#pack{hash=D} = State) ->
+read_packfile_signature({IoDevice, #pack{hash=D} = State}) ->
   Hash = crypto:hash_final(D),
-  case list_to_binary(srcd_utils:read(20)) of
+  case list_to_binary(srcd_utils:read(IoDevice, 20)) of
     Hash -> {ok, State#pack{hash=srcd_utils:bin_to_hex(Hash)}};
     ShouldB -> ?LOG_NOTICE("Hash mismatch: got vs should be ~p",
                            [{Hash, ShouldB}]),
