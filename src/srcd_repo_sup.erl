@@ -10,7 +10,7 @@
 -include("srcd_object.hrl").
 
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    supervisor:start_link({global, ?MODULE}, ?MODULE, []).
 
 mfa(Name, Refs, Objects) ->
   {srcd_repo, start_link, [Name, Refs, Objects]}.
@@ -37,4 +37,4 @@ init([]) ->
 
 add_child(Name) -> add_child(Name, [], []).
 add_child(Name, Refs, Objects) ->
-  supervisor:start_child({local, ?MODULE}, childspec(Name, Refs, Objects)).
+  supervisor:start_child({global, ?MODULE}, childspec(Name, Refs, Objects)).
