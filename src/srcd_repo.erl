@@ -56,9 +56,10 @@ handle_call({object, Id}, _, #?MODULE{objects=Objs} = State) ->
 handle_call({exists, Id}, _, #?MODULE{objects=Objs} = State) ->
   {reply, maps:is_key(Id, Objs), State};
 handle_call({write, Cmds, #pack{objects=NewObjs}}, _,
-            #?MODULE{refs=Refs, objects=Objects} = State) ->
+            #?MODULE{fs=Fs, refs=Refs, objects=Objects} = State) ->
   NewObjects = add_objects(Objects, NewObjs),
   NewRefs = apply_ref_cmds(Refs, Objects, Cmds),
+  srcd_persist:dump(Fs, Cmds, NewObjs),
   {reply, ok, State#?MODULE{refs=NewRefs, objects=NewObjects}}.
 
 handle_cast(_, State) -> {noreply, State}.
