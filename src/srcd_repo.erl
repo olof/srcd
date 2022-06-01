@@ -4,6 +4,7 @@
          handle_call/3, handle_cast/2]).
 -export([exists/1, exists/2, head/1, head/2, refs/1, object/2,
          default_branch/1, write/3]).
+-export([info/1]).
 
 -record(?MODULE, {name, fs, head="refs/heads/master", refs=[], objects=#{}}).
 -define(gproc_name(Repo), {via, gproc, {n, l, {?MODULE, Repo}}}).
@@ -60,7 +61,12 @@ handle_call({write, Cmds, #pack{objects=NewObjs}}, _,
   NewObjects = add_objects(Objects, NewObjs),
   NewRefs = apply_ref_cmds(Refs, Objects, Cmds),
   srcd_persist:dump(Fs, Cmds, NewObjs),
-  {reply, ok, State#?MODULE{refs=NewRefs, objects=NewObjects}}.
+  {reply, ok, State#?MODULE{refs=NewRefs, objects=NewObjects}};
+handle_call(info, _, #?MODULE{refs=Refs, objects=Objects} = State) ->
+  {reply, [
+    {refs, Refs},
+    {object_count, length(Objects)}
+  ], State}.
 
 handle_cast(_, State) -> {noreply, State}.
 
@@ -95,3 +101,5 @@ refs(Repo)                      -> ?call(Repo, refs).
 object(Repo, Id)                -> ?call(Repo, {object, Id}).
 exists(Repo, Id)                -> ?call(Repo, {exists, Id}).
 write(Repo, Cmds, Packfile)     -> ?call(Repo, {write, Cmds, Packfile}).
+
+info(Repo)                      -> ?call(Repo, info).
