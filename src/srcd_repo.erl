@@ -19,7 +19,10 @@ fs_name(Repo) ->
   end.
 
 create(Repo) ->
-  srcd_persist:init(fs_name(Repo), Repo).
+  ?LOG_NOTICE("Creating new repo ~p", [Repo]),
+  srcd_persist:init(fs_name(Repo), Repo),
+  {ok, _Pid} = srcd_repo_sup:add_child(Repo),
+  ok.
 
 start_link(Repo)                -> gen_server:start_link(?gproc_name(Repo),
                                                          ?MODULE, [Repo], []).
