@@ -50,7 +50,7 @@ read(Fh, Digest1) ->
   Length = length(Object),
   Digest = crypto:hash_update(Digest0, Compressed),
   ObjDigest = crypto:hash_update(ObjDigest1, Object),
-  {ok, Parsed} = srcd_object:parse(Type, Object),
+  {ok, Parsed} = parse(Type, Object),
   H = crypto:hash_final(ObjDigest),
   ?LOG_NOTICE("object parsed: hash: ~p", [srcd_utils:bin_to_hex(H)]),
   {ok, #object{data=Parsed, id=srcd_utils:bin_to_hex(H)}, Digest}.
