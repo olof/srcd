@@ -4,11 +4,17 @@
 -export([exists/1, exists/2, head/1, head/2, refs/1, object/2,
          default_branch/1, write/3]).
 
--record(?MODULE, {name, head="refs/heads/master", refs=[], objects=#{}}).
+-record(?MODULE, {name, fs, head="refs/heads/master", refs=[], objects=#{}}).
 -define(gproc_name(Repo), {via, gproc, {n, l, {?MODULE, Repo}}}).
 
 -include("srcd_object.hrl").
 -include_lib("kernel/include/logger.hrl").
+
+fs_name(Repo) ->
+  DbName = filename:basename(Repo, ".git"),
+  case application:get_env(srcd, data_dir) of
+    {ok, Path} -> filename:absname_join(Path, DbName)
+  end.
 
 start_link(Repo)                -> gen_server:start_link(?gproc_name(Repo),
                                                          ?MODULE, [Repo], []).
@@ -16,11 +22,11 @@ start_link(Repo, Refs, Objects) -> gen_server:start_link(?gproc_name(Repo),
                                                          ?MODULE,
                                                          [Repo, Refs, Objects],
                                                          []).
-init([Repo])                -> {ok, #?MODULE{name=Repo}};
+init([Repo])                -> {ok, #?MODULE{name=Repo, fs=fs_name(Repo)}};
 init([Repo, Refs0, Objects]) ->
    Refs = lists:keysort(1, Refs0),
    {ok, Map} = build_index(Refs, Objects),
-   {ok, #?MODULE{name=Repo, refs=Refs, objects=Map}}.
+   {ok, #?MODULE{name=Repo, fs=fs_name(Repo), refs=Refs, objects=Map}}.
 
 build_index(Refs, Objects) -> build_index(Refs, Objects, #{}).
 build_index(Refs, [], Res) -> {ok, Res};
