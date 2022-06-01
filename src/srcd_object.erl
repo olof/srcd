@@ -8,6 +8,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
+type_id(#object{data=Data}) -> type_id(element(1, Data));
 type_id(Atom) ->
   case Atom of
     commit -> 1;
@@ -17,6 +18,7 @@ type_id(Atom) ->
     ofs_delta -> 6;
     ref_delta -> 7
   end.
+type_name(#object{data=Data}) -> element(1, Data);
 type_name(Id) ->
   case Id of
     1 -> commit;
