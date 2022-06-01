@@ -1,6 +1,7 @@
 -module(srcd_repo).
 -behaviour(gen_server).
--export([start_link/1, start_link/3, init/1, handle_call/3, handle_cast/2]).
+-export([start_link/1, start_link/3, create/1, init/1,
+         handle_call/3, handle_cast/2]).
 -export([exists/1, exists/2, head/1, head/2, refs/1, object/2,
          default_branch/1, write/3]).
 
@@ -15,6 +16,9 @@ fs_name(Repo) ->
   case application:get_env(srcd, data_dir) of
     {ok, Path} -> filename:absname_join(Path, DbName)
   end.
+
+create(Repo) ->
+  srcd_persist:init(fs_name(Repo), Repo).
 
 start_link(Repo)                -> gen_server:start_link(?gproc_name(Repo),
                                                          ?MODULE, [Repo], []).
