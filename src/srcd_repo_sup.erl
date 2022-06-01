@@ -3,8 +3,8 @@
 -behaviour(supervisor).
 
 -export([start_link/0]).
-
 -export([init/1]).
+-export([add_child/1]).
 
 -include_lib("kernel/include/logger.hrl").
 -include("srcd_object.hrl").
@@ -34,3 +34,7 @@ init([]) ->
       period => 4},
     initial_children()
   }}.
+
+add_child(Name) -> add_child(Name, [], []).
+add_child(Name, Refs, Objects) ->
+  supervisor:start_child({local, ?MODULE}, childspec(Name, Refs, Objects)).
