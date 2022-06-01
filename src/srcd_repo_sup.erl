@@ -13,7 +13,8 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 initial_children() ->
-  initial_children(srcd_persist:list(), []).
+  {ok, Repos} = srcd_persist:list(),
+  initial_children(Repos, []).
 initial_children([], Res) -> lists:reverse(Res);
 initial_children([Repo|Repos], Res) ->
   {ok, Meta, Refs, Objects} = srcd_persist:load(Repo),

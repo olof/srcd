@@ -41,9 +41,9 @@ dump(Packfile, Refs, Objects) ->
 list() ->
   {ok, Dir} =  application:get_env(srcd, data_dir),
   {ok, Files} = file:list_dir(Dir),
-  [filename:absname_join(Dir, filename:basename(Pack, ".pack")) ||
+  {ok, [filename:absname_join(Dir, filename:basename(Pack, ".pack")) ||
    Pack <- Files,
-   filename:extension(Pack) =:= ".pack"].
+   filename:extension(Pack) =:= ".pack"]}.
 
 read_meta(Packfile) ->
   {ok, Fh} = file:open(Packfile ++ ".pack.meta", [read]),

@@ -21,4 +21,4 @@ dump(Db, Refs, Objects) ->
     {ok, Mod} -> Mod:dump(Db, Refs, Objects);
     _ -> Res
   end.
-list() -> ?forward([]).
+list() -> ?forward([], {ok, []}).

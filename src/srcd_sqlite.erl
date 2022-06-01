@@ -43,8 +43,8 @@ dump(Db, Refs, Objects) ->
 list() ->
   {ok, Dir} =  application:get_env(srcd, data_dir),
   {ok, Dbs} = file:list_dir(Dir),
-  [filename:absname_join(Dir, Db) || Db <- Dbs,
-                                     filename:extension(Db) =:= ".db"].
+  {ok, [filename:absname_join(Dir, Db) || Db <- Dbs,
+                                          filename:extension(Db) =:= ".db"]}.
 
 read_meta(Conn) ->
   esqlite3:map(
