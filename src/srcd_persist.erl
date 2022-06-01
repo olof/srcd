@@ -5,10 +5,11 @@
 
 -include("srcd_object.hrl").
 -include_lib("kernel/include/logger.hrl").
--define(forward(A), case application:get_env(srcd, persistance) of
+-define(forward(A, Default), case application:get_env(srcd, persistance) of
   {ok, PersistanceMod} -> apply(PersistanceMod, ?FUNCTION_NAME, A);
-  _ -> ok
+  _ -> Default
 end).
+-define(forward(A), ?forward(A, ok)).
 
 -export([init/2, load/1, dump/3, list/0]).
 
