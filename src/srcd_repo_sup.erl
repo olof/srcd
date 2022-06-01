@@ -12,6 +12,12 @@
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
+mfa(Name, Refs, Objects) ->
+  {srcd_repo, start_link, [Name, Refs, Objects]}.
+
+childspec(Name, Refs, Objects) ->
+  #{id => Name, start => mfa(Name, Refs, Objects)}.
+
 initial_children() ->
   {ok, Repos} = srcd_persist:list(),
   initial_children(Repos, []).
@@ -19,10 +25,7 @@ initial_children([], Res) -> lists:reverse(Res);
 initial_children([Repo|Repos], Res) ->
   {ok, Meta, Refs, Objects} = srcd_persist:load(Repo),
   Name = proplists:get_value(name, Meta),
-  initial_children(Repos, [#{
-    id => Name,
-    start => {srcd_repo, start_link, [Name, Refs, Objects]}
-  } | Res]).
+  initial_children(Repos, [childspec(Name, Refs, Objects) | Res]).
 
 init([]) ->
   {ok, {
