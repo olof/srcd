@@ -19,7 +19,7 @@ PATH=$PATH:$PWD/tests/utils
 
 tmpd="$(mktemp -d /tmp/srcd-test-XXXXX)"
 
-_build/default/rel/srcd/bin/srcd foreground 2>&1 >$tmpd/app.log &
+_build/test/rel/srcd/bin/srcd foreground 2>&1 >$tmpd/app.log &
 SRV_PID=$!
 
 ssh-keygen -t rsa -f "$tmpd/key" -N "" >/dev/null

@@ -1,0 +1,20 @@
+[
+  {srcd, [
+%    {data_dir, "${PWD}/data/repos"},
+%    {persistance, srcd_diskpack},
+    {sshd, [
+      {host, "${HOST}"},
+      {port, ${PORT}},
+      {keydir, "${PWD}/keys"}
+    ]}
+  ]}
+%  {kernel, [
+%    {logger, [
+%     {handler, default, logger_std_h, #{
+%       config => #{
+%         file => "./srcd.log"
+%       }
+%     }}
+%    ]}
+%  ]}
+].

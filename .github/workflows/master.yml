@@ -25,5 +25,7 @@ jobs:
       run: rebar3 do eunit, ct
     - name: Build release
       run: rebar3 release
+    - name: Build test release
+      run: REBAR_PROFILE=test rebar3 release
     - name: Run integration tests
       run: sh tests/run.sh
