@@ -15,7 +15,8 @@
 fs_name(Repo) ->
   DbName = filename:basename(Repo, ".git"),
   case application:get_env(srcd, data_dir) of
-    {ok, Path} -> filename:absname_join(Path, DbName)
+    {ok, Path} -> filename:absname_join(Path, DbName);
+    undefined -> undefined
   end.
 
 create(Repo) ->
