@@ -1,8 +1,8 @@
 -module(srcd_utils).
 
 -export([cmd_split/1, hex_to_int/1, bin_to_hex/1, bytes_to_hex/1,
-         hex_to_bin_sha1/1, pipe/2, deflate/1, read/1, read/2,
-         read_u32/0, read_u32/1]).
+         hex_to_bin_sha1/1, pipe/2, deflate/1, read/1, read/2, read/3,
+         read_u32/0, read_u32/1, read_u32/2]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -112,18 +112,20 @@ deflate(Data) ->
   ok = zlib:deflateEnd(Z),
   binary_to_list(X).
 
-read(Len) ->
-  Bytes = io:get_chars("", Len),
-  Bytes.
-read(Len, Digest) ->
-  Bytes = read(Len),
+read(Len) -> read(standard_io, Len).
+read(IoDevice, Len) when is_integer(Len) -> io:get_chars(IoDevice, "", Len);
+read(Len, Digest) when is_integer(Len) -> read(standard_io, Len, Digest).
+read(IoDevice, Len, Digest) ->
+  Bytes = read(IoDevice, Len),
   {Bytes, crypto:hash_update(Digest, Bytes)}.
 
-read_u32() ->
+read_u32() -> read_u32(standard_io).
+read_u32(IoDevice) when is_pid(IoDevice) ->
   Bytes = srcd_utils:read(4),
   <<N:32>> = list_to_binary(Bytes),
-  N.
-read_u32(Digest) ->
-  {Bytes, D} = srcd_utils:read(4, Digest),
+  N;
+read_u32(Digest) -> read_u32(standard_io, Digest).
+read_u32(IoDevice, Digest) ->
+  {Bytes, D} = srcd_utils:read(IoDevice, 4, Digest),
   <<N:32>> = list_to_binary(Bytes),
   {N, D}.
