@@ -5,7 +5,8 @@
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, terminate/2]).
 -export([caps/0]).
 
--record(?MODULE, {daemon}).
+-define(STATE, ?MODULE).
+-record(?STATE, {daemon}).
 -record(proto, {version}).
 -define(INVALID, {error, "invalid command\n"}).
 
@@ -43,14 +44,14 @@ init([]) ->
   {ok, ListenIp} = inet:getaddr(Host, inet),
 
   case ssh:daemon(ListenIp, Port, Opts) of
-    {ok, Daemon} -> {ok, #?MODULE{daemon=Daemon}};
+    {ok, Daemon} -> {ok, #?STATE{daemon=Daemon}};
     {error, Err} -> {stop, {error, Err}}
   end.
 
 handle_call(_, _, State) -> {reply, '?', State}.
 handle_cast(_, State)    -> {noreply, State}.
 
-terminate(_, #?MODULE{daemon=Daemon}) ->
+terminate(_, #?STATE{daemon=Daemon}) ->
   ssh:stop_daemon(Daemon).
 
 env_to_opts(#{<<"GIT_PROTOCOL">> := Proto}) -> proto_params(Proto);

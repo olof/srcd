@@ -8,7 +8,8 @@
          default_branch/1, write/3]).
 -export([info/1]).
 
--record(?MODULE, {name, fs, head="refs/heads/master", refs=[], objects=#{}}).
+-define(STATE, ?MODULE).
+-record(?STATE, {name, fs, head="refs/heads/master", refs=[], objects=#{}}).
 -define(gproc_name(Repo), {via, gproc, {n, l, {?MODULE, Repo}}}).
 
 -include("srcd_object.hrl").
@@ -33,42 +34,42 @@ start_link(Repo, Refs, Objects) -> gen_server:start_link(?gproc_name(Repo),
                                                          ?MODULE,
                                                          [Repo, Refs, Objects],
                                                          []).
-init([Repo])                -> {ok, #?MODULE{name=Repo, fs=fs_name(Repo)}};
+init([Repo])                -> {ok, #?STATE{name=Repo, fs=fs_name(Repo)}};
 init([Repo, Refs0, Objects]) ->
    Refs = lists:keysort(1, Refs0),
    {ok, Map} = build_index(Refs, Objects),
-   {ok, #?MODULE{name=Repo, fs=fs_name(Repo), refs=Refs, objects=Map}}.
+   {ok, #?STATE{name=Repo, fs=fs_name(Repo), refs=Refs, objects=Map}}.
 
 build_index(Refs, Objects) -> build_index(Refs, Objects, #{}).
 build_index(Refs, [], Res) -> {ok, Res};
 build_index(Refs, [#object{id=Id, data=Data}|Objects], Res) ->
   build_index(Refs, Objects, Res#{Id => Data}).
 
-handle_call(head, _, #?MODULE{head=Ref} = State) ->
+handle_call(head, _, #?STATE{head=Ref} = State) ->
   {reply, {ok, Ref}, State};
-handle_call({head, "HEAD"}, _, #?MODULE{refs=Refs, head=Ref} = State) ->
+handle_call({head, "HEAD"}, _, #?STATE{refs=Refs, head=Ref} = State) ->
   Head = proplists:get_value(Ref, Refs),
   {reply, {ok, Head}, State};
-handle_call({head, Ref}, _, #?MODULE{refs=Refs} = State) ->
+handle_call({head, Ref}, _, #?STATE{refs=Refs} = State) ->
   Head = proplists:get_value(Ref, Refs, {error, nomatch}),
   {reply, Head, State};
-handle_call(refs, _, #?MODULE{head=Head, refs=Refs} = State) ->
+handle_call(refs, _, #?STATE{head=Head, refs=Refs} = State) ->
   {reply, {ok, Refs}, State};
-handle_call({object, Id}, _, #?MODULE{objects=Objs} = State) ->
+handle_call({object, Id}, _, #?STATE{objects=Objs} = State) ->
   case maps:is_key(Id, Objs) of
     true -> #{Id := Obj} = Objs,
             {reply, {ok, #object{id=Id, data=Obj}}, State};
     false -> {reply, {error, nomatch}, State}
   end;
-handle_call({exists, Id}, _, #?MODULE{objects=Objs} = State) ->
+handle_call({exists, Id}, _, #?STATE{objects=Objs} = State) ->
   {reply, maps:is_key(Id, Objs), State};
 handle_call({write, Cmds, #pack{objects=NewObjs}}, _,
-            #?MODULE{fs=Fs, refs=Refs, objects=Objects} = State) ->
+            #?STATE{fs=Fs, refs=Refs, objects=Objects} = State) ->
   NewObjects = add_objects(Objects, NewObjs),
   NewRefs = apply_ref_cmds(Refs, Objects, Cmds),
   srcd_persistence:dump(Fs, Cmds, NewObjs),
-  {reply, ok, State#?MODULE{refs=NewRefs, objects=NewObjects}};
-handle_call(info, _, #?MODULE{refs=Refs, objects=Objects} = State) ->
+  {reply, ok, State#?STATE{refs=NewRefs, objects=NewObjects}};
+handle_call(info, _, #?STATE{refs=Refs, objects=Objects} = State) ->
   {reply, [
     {refs, Refs},
     {object_count, length(Objects)}
