@@ -5,6 +5,12 @@
 % Trigger persistence (i.e write to disk), using a pluggable storage module;
 % we currently only have a sqlite implementation,.
 
+-callback init(Db :: term(), Name :: term()) -> ok.
+-callback load(Db :: term()) ->
+  {ok, Meta :: list(), Refs :: list(), Objects :: list()}.
+-callback dump(Db :: term(), Refs :: term(), Objects :: term()) -> ok.
+-callback list() -> {ok, Res :: list()}.
+
 -include("srcd_object.hrl").
 -include_lib("kernel/include/logger.hrl").
 -define(forward(A, Default), case application:get_env(srcd, persistence) of
