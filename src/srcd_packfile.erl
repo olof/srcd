@@ -88,15 +88,16 @@ append_hash(Packfile) ->
 packfile_header_test_() ->
   Prefix = [$P, $A, $C, $K, 0, 0, 0, 2], % PackVersion = 2
   [
-    ?_assertEqual({ok, Prefix ++ [0,0,0,0]}, build_header(0)),
-    ?_assertEqual({ok, Prefix ++ [0,0,0,1]}, build_header(1)),
-    ?_assertEqual({ok, Prefix ++ [0,0,0,128]}, build_header(128)),
-    ?_assertEqual({ok, Prefix ++ [0,0,0,255]}, build_header(255)),
-    ?_assertEqual({ok, Prefix ++ [0,0,1,0]}, build_header(256)),
-    ?_assertEqual({ok, Prefix ++ [0,0,255,255]}, build_header(65535)),
-    ?_assertEqual({ok, Prefix ++ [0,255,255,255]}, build_header(16777215)),
-    ?_assertEqual({ok, Prefix ++ [1,0,0,0]}, build_header(16777216)),
-    ?_assertEqual({ok, Prefix ++ [255,255,255,255]}, build_header(4294967295)),
+    ?_assertEqual({ok, Prefix ++ [0, 0, 0, 0]}, build_header(0)),
+    ?_assertEqual({ok, Prefix ++ [0, 0, 0, 1]}, build_header(1)),
+    ?_assertEqual({ok, Prefix ++ [0, 0, 0, 128]}, build_header(128)),
+    ?_assertEqual({ok, Prefix ++ [0, 0, 0, 255]}, build_header(255)),
+    ?_assertEqual({ok, Prefix ++ [0, 0, 1, 0]}, build_header(256)),
+    ?_assertEqual({ok, Prefix ++ [0, 0, 255, 255]}, build_header(65535)),
+    ?_assertEqual({ok, Prefix ++ [0, 255, 255, 255]}, build_header(16777215)),
+    ?_assertEqual({ok, Prefix ++ [1, 0, 0, 0]}, build_header(16777216)),
+    ?_assertEqual({ok, Prefix ++ [255, 255, 255, 255]},
+                       build_header(4294967295)),
     ?_assertEqual({error, badarg}, build_header(4294967296)),
     ?_assertEqual({error, badarg}, build_header(-1))
   ].
