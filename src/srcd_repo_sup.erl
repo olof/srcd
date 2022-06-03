@@ -21,11 +21,11 @@ childspec(Name, Refs, Objects) ->
   #{id => Name, start => mfa(Name, Refs, Objects)}.
 
 initial_children() ->
-  {ok, Repos} = srcd_persist:list(),
+  {ok, Repos} = srcd_persistence:list(),
   initial_children(Repos, []).
 initial_children([], Res) -> lists:reverse(Res);
 initial_children([Repo|Repos], Res) ->
-  {ok, Meta, Refs, Objects} = srcd_persist:load(Repo),
+  {ok, Meta, Refs, Objects} = srcd_persistence:load(Repo),
   Name = proplists:get_value(name, Meta),
   initial_children(Repos, [childspec(Name, Refs, Objects) | Res]).
 

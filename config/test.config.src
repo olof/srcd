@@ -1,7 +1,7 @@
 [
   {srcd, [
 %    {data_dir, "${PWD}/data/repos"},
-%    {persistance, srcd_diskpack},
+%    {persistence, srcd_diskpack},
     {sshd, [
       {host, "${HOST}"},
       {port, ${PORT}},

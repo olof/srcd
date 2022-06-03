@@ -23,7 +23,7 @@ fs_name(Repo) ->
 
 create(Repo) ->
   ?LOG_NOTICE("Creating new repo ~p", [Repo]),
-  srcd_persist:init(fs_name(Repo), Repo),
+  srcd_persistence:init(fs_name(Repo), Repo),
   {ok, _Pid} = srcd_repo_sup:add_child(Repo),
   ok.
 
@@ -66,7 +66,7 @@ handle_call({write, Cmds, #pack{objects=NewObjs}}, _,
             #?MODULE{fs=Fs, refs=Refs, objects=Objects} = State) ->
   NewObjects = add_objects(Objects, NewObjs),
   NewRefs = apply_ref_cmds(Refs, Objects, Cmds),
-  srcd_persist:dump(Fs, Cmds, NewObjs),
+  srcd_persistence:dump(Fs, Cmds, NewObjs),
   {reply, ok, State#?MODULE{refs=NewRefs, objects=NewObjects}};
 handle_call(info, _, #?MODULE{refs=Refs, objects=Objects} = State) ->
   {reply, [
