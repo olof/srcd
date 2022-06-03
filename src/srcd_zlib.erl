@@ -3,6 +3,8 @@
 -module(srcd_zlib).
 -export([deflate/1, inflate/1, test/0]).
 
+-elvis([{elvis_style, no_catch_expressions, disable}]).
+
 % I don't like git anymore ♥
 % Reads one byte at a time, tries to inflateEnd, sees if it throws
 % an exception, and if not... maybe we're good? or if we get an exception
