@@ -1,5 +1,5 @@
 {application, srcd,
- [{description, "git server"},
+ [{description, "source server"},
   {vsn, "0.1.0"},
   {registered, []},
   {mod, {srcd, []}},
