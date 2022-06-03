@@ -1,6 +1,7 @@
 % ex:ts=2:sw=2:sts=2:et
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 -module(srcd_receive_pack).
+-behavior(srcd_cmd).
 -export([callback_mode/0, init/2]).
 -export([advertise/1, wait_for_input/1, read_packfile/1,
          verify_packfile/1, process_cmds/1, process_lines/1]).

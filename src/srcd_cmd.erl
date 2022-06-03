@@ -4,6 +4,9 @@
 -export([exec/2]).
 -include_lib("kernel/include/logger.hrl").
 
+-callback init(Version :: integer(), Args :: list()) ->
+  {ok, State :: atom(), Data :: term()}.
+
 cmd_module("git-upload-pack", 2) -> srcd_pack_v2;
 cmd_module("git-receive-pack", _) -> srcd_receive_pack;
 cmd_module("git-upload-pack", _) -> srcd_upload_pack;
