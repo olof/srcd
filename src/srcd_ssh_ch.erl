@@ -18,7 +18,8 @@ handle_msg({ssh_channel_up, ChannelId, ConnectionManager}, State) ->
     {ok, State#state{id = ChannelId,
                      cm = ConnectionManager}}.
 
-handle_ssh_msg({ssh_cm, CM, {data, ChannelId, 0, Data}}, #state{n = N} = State) ->
+handle_ssh_msg({ssh_cm, CM, {data, ChannelId, 0, Data}},
+               #state{n = N} = State) ->
     M = N - size(Data),
     case M > 0 of
         true ->
@@ -30,7 +31,8 @@ handle_ssh_msg({ssh_cm, CM, {data, ChannelId, 0, Data}}, #state{n = N} = State) 
            ssh_connection:send_eof(CM, ChannelId),
            {stop, ChannelId, State}
     end;
-handle_ssh_msg({ssh_cm, CM, {env, ChannelId, WantReply, Var, Val}}, #state{n = N} = State) ->
+handle_ssh_msg({ssh_cm, CM, {env, ChannelId, WantReply, Var, Val}},
+               #state{n = N} = State) ->
     ?LOG_NOTICE("Got env ~s=~p", [Var, Val]),
     ssh_connection:reply_request(CM, WantReply, failure, ChannelId),
     {ok, State};
