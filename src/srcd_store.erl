@@ -1,1 +1,0 @@
--module(srcd_store).
