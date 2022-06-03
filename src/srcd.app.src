@@ -2,7 +2,7 @@
  [{description, "git server"},
   {vsn, "0.1.0"},
   {registered, []},
-  {mod, {srcd_app, []}},
+  {mod, {srcd, []}},
   {applications,
    [kernel,
     stdlib,
