@@ -1,3 +1,5 @@
+% ex:ts=2:sw=2:sts=2:et
+% -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 -module(srcd_utils).
 
 -export([cmd_split/1, hex_to_int/1, bin_to_hex/1, bytes_to_hex/1,

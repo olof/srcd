@@ -1,3 +1,5 @@
+% ex:ts=2:sw=2:sts=2:et
+% -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 %%%-------------------------------------------------------------------
 %% @doc srcd top level supervisor.
 %% @end

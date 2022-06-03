@@ -1,3 +1,5 @@
+% ex:ts=2:sw=2:sts=2:et
+% -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 -module(srcd_packfile).
 -export([read/0, read/1, build/2, object_ids/1, object_deps/1]).
 
