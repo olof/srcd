@@ -48,7 +48,7 @@ inflate_reader(Z, {Reader, Pos}, InProc, InUnproc, Out, ReadCount0, N) ->
       %?LOG_NOTICE("Got nothing back! Maybe I'm done?"),
       case catch zlib:inflateEnd(Z) of
         {'EXIT', {data_error, _}} ->
-	  inflate_reader({Reader, NewPos}, InProc ++ NewBuf);
+          inflate_reader({Reader, NewPos}, InProc ++ NewBuf);
         ok -> {ok, ReadCount, Out, InProc ++ NewBuf}
       end;
     [New] ->

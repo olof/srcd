@@ -111,9 +111,9 @@ objects(Repo, [Id | Ids], Seen, Res) ->
     false ->
       case srcd_repo:object(Repo, Id) of
         {ok, Object} ->
-	  ?LOG_NOTICE("Obj: ~p", [Object]),
-	  Deps = srcd_object:deps(Object),
-	  ?LOG_NOTICE("Obj deps: ~p", [Deps]),
+          ?LOG_NOTICE("Obj: ~p", [Object]),
+          Deps = srcd_object:deps(Object),
+          ?LOG_NOTICE("Obj deps: ~p", [Deps]),
           objects(Repo, Deps ++ Ids, Seen#{Id => 1}, [Object | Res]);
         {error, nomatch} ->
           {error, invalid_ref}

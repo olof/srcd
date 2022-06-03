@@ -29,8 +29,8 @@ wait_for_input(Data, Res, Caps0) ->
     {data, Line} ->
       case Caps0 of
         [] -> [Line1, Caps] = string:split(Line, "\0"),
-	      wait_for_input(Data, [Line1|Res], parse_caps(Caps));
-	_ -> wait_for_input(Data, [Line|Res], Caps0)
+              wait_for_input(Data, [Line1|Res], parse_caps(Caps));
+        _ -> wait_for_input(Data, [Line|Res], Caps0)
       end
   end.
 

@@ -74,7 +74,7 @@ read_command(Cmd, Caps, Args, DelimSeen) ->
     {data, Input} ->
       if DelimSeen -> read_command(Cmd, Caps, [Input|Args], DelimSeen);
          true      -> read_command(Cmd, [parse_cap(Input)|Caps], Args,
-	                           DelimSeen)
+                                   DelimSeen)
       end
   end.
 
