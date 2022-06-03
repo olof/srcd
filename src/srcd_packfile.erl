@@ -75,7 +75,8 @@ read_packfile_signature({IoDevice, #pack{hash=D} = State}) ->
   end.
 
 build_header(Count) when Count >= 0 andalso Count < 4294967296 ->
-  {ok, ?PACK_MAGIC ++ [0,0,0,?PACK_VERSION] ++ binary_to_list(<<Count:32>>)};
+  {ok, lists:concat([?PACK_MAGIC, [0, 0, 0, ?PACK_VERSION],
+                     binary_to_list(<<Count:32>>)])};
 build_header(_) -> {error, badarg}.
 
 append_hash(Packfile) ->
