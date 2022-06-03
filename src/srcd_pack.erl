@@ -73,11 +73,10 @@ read_command(Cmd, Caps, Args, DelimSeen) ->
   case read_line() of
     flush -> {Cmd, Caps, lists:reverse(Args)};
     delim -> read_command(Cmd, lists:reverse(Caps), Args, true);
-    {data, Input} ->
-      if DelimSeen -> read_command(Cmd, Caps, [Input|Args], DelimSeen);
-         true      -> read_command(Cmd, [parse_cap(Input)|Caps], Args,
-                                   DelimSeen)
-      end
+    {data, Input} -> case DelimSeen of
+      true -> read_command(Cmd, Caps, [Input|Args], DelimSeen);
+      _ -> read_command(Cmd, [parse_cap(Input)|Caps], Args, DelimSeen)
+    end
   end.
 
 parse_cap(Str) ->
