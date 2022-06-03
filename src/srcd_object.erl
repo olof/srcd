@@ -1,7 +1,8 @@
 % ex:ts=2:sw=2:sts=2:et
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 -module(srcd_object).
--export([read/1, read/2, deps/1, pack/1, encode/1, canon/1, parse/1, parse/2, type_id/1, type_name/1]).
+-export([read/1, read/2, deps/1, pack/1, encode/1, canon/1,
+         parse/1, parse/2, type_id/1, type_name/1]).
 
 -include_lib("kernel/include/logger.hrl").
 -include("srcd_object.hrl").

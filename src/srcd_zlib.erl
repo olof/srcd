@@ -31,7 +31,8 @@ inflate_reader(Reader, PreBuf) ->
       ok = zlib:close(Z),
       {ok, Len, Data, Compressed};
     {Prefix, Tail} ->
-      ?LOG_NOTICE("Unexpected header ~p~nBefore: ~p~nAfter: ~p~nData: ~p", [Prefix, Compressed, Tail, Data]),
+      ?LOG_NOTICE("Unexpected header ~p~nBefore: ~p~nAfter: ~p~nData: ~p",
+                  [Prefix, Compressed, Tail, Data]),
       {error, bad_zlib}
   end.
 inflate_reader(Z, {Reader, Pos}, InProc, InUnproc, Out, ReadCount0, N) ->
@@ -54,7 +55,8 @@ inflate_reader(Z, {Reader, Pos}, InProc, InUnproc, Out, ReadCount0, N) ->
         ok -> {ok, ReadCount, Out, InProc ++ NewBuf}
       end;
     [New] ->
-      inflate_reader(Z, {Reader, NewPos}, InProc ++ NewBuf, [], Out ++ binary_to_list(New), ReadCount, N+1)
+      inflate_reader(Z, {Reader, NewPos}, InProc ++ NewBuf, [],
+                     Out ++ binary_to_list(New), ReadCount, N+1)
   end.
 
 -define(TEST_Z, [16#78, 16#9c, 16#2b, 16#49, 16#2d, 16#2e,
@@ -106,8 +108,10 @@ test_4() ->
   {ok, Len, Tree0, _} = inflate(Fh1),
   Tree = string:split(Tree0, "\0"),
   Len = 41,
-  Tree = ["100644 file", [48, 215, 77, 37, 132, 66, 199, 198, 85, 18, 234, 250, 180, 116, 86, 141, 215, 6, 196, 48]],
+  Tree = ["100644 file", [48, 215, 77, 37, 132, 66, 199, 198, 85, 18,
+                          234, 250, 180, 116, 86, 141, 215, 6, 196, 48]],
 
   Header3 = io:get_chars(Fh1, "", 1),
-  {ok, 12, "test", [16#78, 16#9c, 16#2b, 16#49, 16#2d, 16#2e, 16#01, 16#00, 16#04, 16#5d, 16#01, 16#c1]} = inflate(Fh1),
+  {ok, 12, "test", [16#78, 16#9c, 16#2b, 16#49, 16#2d, 16#2e,
+                    16#01, 16#00, 16#04, 16#5d, 16#01, 16#c1]} = inflate(Fh1),
   file:close(Fh1).
