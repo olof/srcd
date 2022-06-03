@@ -391,12 +391,12 @@ tree_single_blob_test_() ->
       object="da39a3ee5e6b4b0d3255bfef95601890afd80709"
     }
   ],
-  BinHex = srcd_utils:hex_to_bin_sha1("da39a3ee5e6b4b0d3255bfef95601890afd80709"),
+  H = srcd_utils:hex_to_bin_sha1("da39a3ee5e6b4b0d3255bfef95601890afd80709"),
 
   [
     ?_assertEqual(["da39a3ee5e6b4b0d3255bfef95601890afd80709"],
                   deps(#tree{items=Entries})),
-    ?_assertEqual({tree, "100644 test\0" ++ BinHex},
+    ?_assertEqual({tree, "100644 test\0" ++ H},
                   encode(#tree{items=Entries}))
   ].
 
