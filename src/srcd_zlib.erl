@@ -34,7 +34,8 @@ inflate_reader(Reader, PreBuf) ->
   %?LOG_NOTICE("Inflate with prebuf: ~p", [PreBuf]),
   Z = zlib:open(),
   ok = zlib:'inflateInit'(Z),
-  {ok, Len, Data, Compressed} = inflate_reader(Z, Reader, [], PreBuf, [], length(PreBuf), 1),
+  {ok, Len, Data, Compressed} = inflate_reader(Z, Reader, [], PreBuf,
+                                               [], length(PreBuf), 1),
   case lists:split(2, Compressed) of
     {[120, 156], _} ->
       CLen = length(Compressed),
