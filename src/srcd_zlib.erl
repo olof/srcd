@@ -1,7 +1,7 @@
 % ex:ts=2:sw=2:sts=2:et
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 -module(srcd_zlib).
--export([inflate/1, test/0]).
+-export([deflate/1, inflate/1, test/0]).
 
 % I don't like git anymore ♥
 % Reads one byte at a time, tries to inflateEnd, sees if it throws
@@ -10,6 +10,17 @@
 % please hire me to do your netcodes!
 
 -include_lib("kernel/include/logger.hrl").
+
+% Note: deflate takes a full data blob and compresses, unlike inflate that
+%       takes an iodevice and uncompresses the stream. This is not a public
+%       api so that's fine :)
+
+deflate(Data) ->
+  Z = zlib:open(),
+  ok = zlib:deflateInit(Z, default),
+  [X] = zlib:deflate(Z, Data, finish),
+  ok = zlib:deflateEnd(Z),
+  binary_to_list(X).
 
 inflate(IoDevice) ->
   ?LOG_NOTICE("Inflate object"),

@@ -3,7 +3,7 @@
 -module(srcd_utils).
 
 -export([cmd_split/1, hex_to_int/1, bin_to_hex/1, bytes_to_hex/1,
-         hex_to_bin_sha1/1, pipe/2, deflate/1, read/1, read/2, read/3,
+         hex_to_bin_sha1/1, pipe/2, read/1, read/2, read/3,
          read_u32/0, read_u32/1, read_u32/2]).
 
 -ifdef(TEST).
@@ -104,13 +104,6 @@ pipe(State, [Step|Steps]) ->
     {error, Err} -> {error, Err};
     {ok, NewState} -> pipe(NewState, Steps)
   end.
-
-deflate(Data) ->
-  Z = zlib:open(),
-  ok = zlib:deflateInit(Z, default),
-  [X] = zlib:deflate(Z, Data, finish),
-  ok = zlib:deflateEnd(Z),
-  binary_to_list(X).
 
 read(Len) -> read(standard_io, Len).
 read(IoDevice, Len) when is_integer(Len) -> io:get_chars(IoDevice, "", Len);

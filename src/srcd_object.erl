@@ -103,7 +103,7 @@ encode(#tree_node{mode=Mode, name=Name, object=Oid}) ->
 pack(Object) ->
   {Type, Payload} = encode(Object),
   EncHeader = header(Type, length(Payload)),
-  Compressed = srcd_utils:deflate(Payload),
+  Compressed = srcd_zlib:deflate(Payload),
   lists:concat([EncHeader, Compressed]).
 
 header(Type, Len) when is_atom(Type) ->
