@@ -135,7 +135,7 @@ ls_ref_args([Arg|Args], Res) ->
       [{prefix, ArgArgs}|Res]
   end).
 
--define(KNOWN_ARG(F,Str),
+-define(KNOWN_ARG(F, Str),
         F([[Str]|T], Res) -> F(T, [list_to_atom(Str)|Res]);
         F([[Str, Arg]|T], Res) -> F(T, [{list_to_atom(Str), Arg}|Res])
        ).
