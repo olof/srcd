@@ -1,7 +1,7 @@
 % ex:ts=2:sw=2:sts=2:et
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 -module(srcd_repo).
--behaviour(gen_server).
+-behavior(gen_server).
 -export([start_link/1, start_link/3, create/1, init/1,
          handle_call/3, handle_cast/2]).
 -export([exists/1, exists/2, head/1, head/2, refs/1, object/2,

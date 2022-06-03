@@ -2,7 +2,7 @@
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 -module(srcd_repo_sup).
 
--behaviour(supervisor).
+-behavior(supervisor).
 
 -export([start_link/0]).
 -export([init/1]).

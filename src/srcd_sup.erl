@@ -7,7 +7,7 @@
 
 -module(srcd_sup).
 
--behaviour(supervisor).
+-behavior(supervisor).
 
 -export([start_link/0]).
 

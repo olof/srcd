@@ -1,7 +1,7 @@
 % ex:ts=2:sw=2:sts=2:et
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 -module(srcd_ssh).
--behaviour(gen_server).
+-behavior(gen_server).
 -export([start_link/0, init/1, handle_call/3, handle_cast/2, terminate/2]).
 -export([caps/0]).
 

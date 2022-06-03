@@ -1,7 +1,7 @@
 % ex:ts=2:sw=2:sts=2:et
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 -module(srcd_upload_pack).
--behaviour(srcd_cmd).
+-behavior(srcd_cmd).
 -export([init/2, caps/0]).
 -export([
   advertise/1,

@@ -6,7 +6,7 @@
 %%%-------------------------------------------------------------------
 
 -module(srcd).
--behaviour(application).
+-behavior(application).
 
 -export([start/2, stop/1]).
 -export([new/1, info/1]).
