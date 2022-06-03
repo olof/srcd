@@ -17,9 +17,9 @@
 
 deflate(Data) ->
   Z = zlib:open(),
-  ok = zlib:deflateInit(Z, default),
+  ok = zlib:'deflateInit'(Z, default),
   [X] = zlib:deflate(Z, Data, finish),
-  ok = zlib:deflateEnd(Z),
+  ok = zlib:'deflateEnd'(Z),
   binary_to_list(X).
 
 inflate(IoDevice) ->
@@ -33,7 +33,7 @@ inflate_reader({Reader, Pos}) ->
 inflate_reader(Reader, PreBuf) ->
   %?LOG_NOTICE("Inflate with prebuf: ~p", [PreBuf]),
   Z = zlib:open(),
-  ok = zlib:inflateInit(Z),
+  ok = zlib:'inflateInit'(Z),
   {ok, Len, Data, Compressed} = inflate_reader(Z, Reader, [], PreBuf, [], length(PreBuf), 1),
   case lists:split(2, Compressed) of
     {[120, 156], _} ->
@@ -60,7 +60,7 @@ inflate_reader(Z, {Reader, Pos}, InProc, InUnproc, Out, ReadCount0, N) ->
                      {ok, ReadCount0, Out, InProc ++ NewBuf};
     [] ->
       %?LOG_NOTICE("Got nothing back! Maybe I'm done?"),
-      case catch zlib:inflateEnd(Z) of
+      case catch zlib:'inflateEnd'(Z) of
         {'EXIT', {data_error, _}} ->
           inflate_reader({Reader, NewPos}, InProc ++ NewBuf);
         ok -> {ok, ReadCount, Out, InProc ++ NewBuf}
