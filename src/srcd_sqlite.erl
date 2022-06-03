@@ -9,8 +9,6 @@
 
 -export([init/2, load/1, dump/3, list/0]).
 
--define(db(Name), Name ++ ".db").
-
 open(Name) -> esqlite3:open(Name ++ ".db").
 
 init(Db, Name) ->
