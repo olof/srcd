@@ -140,7 +140,8 @@ ls_ref_args([Arg|Args], Res) ->
         F([[Str, Arg]|T], Res) -> F(T, [{list_to_atom(Str), Arg}|Res])
        ).
 
-fetch_args(Args) -> fetch_args([string:split(string:trim(Arg), " ") || Arg <- Args], []).
+fetch_args(Args) ->
+  fetch_args([string:split(string:trim(Arg), " ") || Arg <- Args], []).
 fetch_args([], Res) -> lists:reverse(Res);
 ?KNOWN_ARG(fetch_args, "want");
 ?KNOWN_ARG(fetch_args, "have");
