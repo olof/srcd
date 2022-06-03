@@ -10,16 +10,16 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--define(state_funwrap(F), fun (State) -> F(State) end).
+-define(STATE_FUN(F), fun (State) -> F(State) end).
 
 read() -> read(standard_io).
 read(IoDevice) ->
   srcd_utils:pipe({IoDevice, #pack{}}, [
-    ?state_funwrap(read_packfile_magic),
-    ?state_funwrap(read_packfile_version),
-    ?state_funwrap(read_packfile_object_count),
-    ?state_funwrap(read_packfile_objects),
-    ?state_funwrap(read_packfile_signature)
+    ?STATE_FUN(read_packfile_magic),
+    ?STATE_FUN(read_packfile_version),
+    ?STATE_FUN(read_packfile_object_count),
+    ?STATE_FUN(read_packfile_objects),
+    ?STATE_FUN(read_packfile_signature)
   ]).
 
 build(Repo, Ids) ->
