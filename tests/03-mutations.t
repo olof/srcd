@@ -1,4 +1,4 @@
-plan 15
+plan 24
 
 description <<'EOF'
 Initiailize a default set of repos and perform write operations
@@ -40,19 +40,19 @@ for PROTO_VERSION in 0 1 2; do
 	   "73bcc819355b1b4e7bd3466e3f8233726515656d" \
 	   "test$v.git locally updated to 73bcc81"
 
-	#git -C test$v push origin HEAD:refs/heads/master
-	#r=$?
-	#is $r 0 "pushing test$v.git succeeds"
-	#[ $r -eq 0 ] || echo "$output" >&2
+	git -C test$v push origin HEAD:refs/heads/master
+	r=$?
+	is $r 0 "pushing test$v.git succeeds"
+	[ $r -eq 0 ] || echo "$output" >&2
 
-	#output=$(git clone "$BASE_URL/test$v.git" test$v-copy 2>&1)
-	#r=$?
-	#is $r 0 "cloning test$v.git again succeeds"
-	#[ $r -eq 0 ] || echo "$output" >&2
+	output=$(git clone "$BASE_URL/test$v.git" test$v-copy 2>&1)
+	r=$?
+	is $r 0 "cloning test$v.git again succeeds"
+	[ $r -eq 0 ] || echo "$output" >&2
 
-	#is "$(git -C test$v-copy rev-parse HEAD)" \
-	#   "73bcc819355b1b4e7bd3466e3f8233726515656d" \
-	#   "new clone of test$v.git has updated rev"
+	is "$(git -C test$v-copy rev-parse HEAD)" \
+	   "73bcc819355b1b4e7bd3466e3f8233726515656d" \
+	   "new clone of test$v.git has updated rev"
 done
 PROTO_VERSION=
 
