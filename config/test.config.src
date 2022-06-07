@@ -1,11 +1,11 @@
 [
   {srcd, [
-%    {data_dir, "${PWD}/data/repos"},
-%    {persistence, srcd_diskpack},
+    {data_dir, "${SRCD_REPO_DIR}"},
+    {persistence, srcd_diskpack},
     {sshd, [
       {host, "${HOST}"},
       {port, ${PORT}},
-      {keydir, "${PWD}/keys"}
+      {keydir, "${SSH_HOST_KEY_DIR}"}
     ]}
   ]}
 %  {kernel, [
