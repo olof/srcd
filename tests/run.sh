@@ -1,82 +1,41 @@
 #!/bin/sh
+# Set up things in the environment that survives throughout all the suites:
+# ssh keys, git setup, stuff like that.
+set -e
+
 clean() {
-	echo "killing $SRV_PID and $SSH_AGENT_PID, removing $tmpd" >&2
-	[ -z "$SRV_PID" ] || kill -9 "$SRV_PID";
-	[ -z "$SSH_AGENT_PID" ] || kill "$SSH_AGENT_PID";
 	! [ -d "$tmpd" ] || rm -rf "$tmpd";
 }
 
-unset SSH_AGENT_PID SRV_PID tmpd
-
-trap clean EXIT
-
-export LANG=C
-export USER=git
-export PORT=22222
-export HOST=127.199.23.92
-
+unset tmpd
+export LANG=C.UTF-8
 PATH=$PATH:$PWD/tests/utils
 
+pwd
+
+trap clean EXIT
 tmpd="$(mktemp -d /tmp/srcd-test-XXXXX)"
+mkdir -p "$tmpd/ssh/user" "$tmpd/ssh/host" "$tmpd/empty"
 
-_build/test/rel/srcd/bin/srcd foreground 2>&1 >$tmpd/app.log &
-SRV_PID=$!
+export SSH_USER_KEY_DIR=$tmpd/ssh/user
+export SSH_USER_KEY=$SSH_USER_KEY_DIR/id_rsa
+export SSH_USER_KNOWN_HOSTS=$SSH_USER_KEY_DIR/known_hosts
+export SSH_HOST_KEY_DIR=$tmpd/ssh/host
+export SSH_HOST_KEY=$SSH_HOST_KEY_DIR/ssh_host_rsa_key
 
-ssh-keygen -t rsa -f "$tmpd/key" -N "" >/dev/null
+ssh-keygen -t rsa -f "$SSH_USER_KEY" -N "" >/dev/null
+ssh-keygen -t rsa -f "$SSH_HOST_KEY" -N "" >/dev/null
 
-eval `ssh-agent`
-
-ssh-add "$tmpd/key"
-
-sleep_t=1
-retries=7
-
-die_dump_log() {
-	echo Error: "$@" >&2
-	cat $tmpd/app.log >&2
-	echo "<<<$output>>>" >&2
-	exit 1
-}
-
-while :; do
-	output=$(ssh -o StrictHostKeyChecking=accept-new \
-	             -o UserKnownHostsFile=/dev/null \
-	             -p $PORT $USER@$HOST true 2>&1 | tr -d \\r)
-	# Why do we mix stdout and stderr?
-	# On stdout we expect an application level error ("invalid command")
-	# On stderr we expect ssh level errors (econrefused)
-	# If neither of them exist in the mixed stream, we bail.
-	case "$output" in
-		*"**Error** invalid command"*) break ;;
-		"ssh: connect to host $HOST port $PORT: Connection refused")
-			[ -d "/proc/$SRV_PID" ] || die_dump_log "srcd has died"
-			echo "sshd not ready yet, retrying in ${sleep_t}s" >&2
-			sleep $sleep_t;
-			sleep_t=$(($sleep_t * 2))
-			retries=$((retries-1))
-			[ "$retries" -le 0 ] || continue
-			die_dump_log "econnrefused, tried ${max_tries} times"
-			;;
-		*)
-			die_dump_log "unexpected ssh response: <<<$output>>>"
-	esac
-done
+git config --global init.templateDir "$tmpd/empty"
 
 export SRCDIR=$PWD
-export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/dev/null"
+export TESTDIR=$PWD/tests
+ssh=ssh
+ssh="$ssh -o IdentityFile=$SSH_USER_KEY"
+ssh="$ssh -o StrictHostKeyChecking=accept-new"
+ssh="$ssh -o UserKnownHostsFile=$SSH_USER_KNOWN_HOSTS"
+export GIT_SSH_COMMAND="$ssh"
+
 cd "$tmpd"
-export GIT_TRACE=$PWD/git.log
-export GIT_TRACE_PACKET=$PWD/git.packet.log
-if ! prove -e "$SRCDIR/tests/tap.sh" -v "$SRCDIR/tests/proto/"*/*.t; then
-	echo "git trace:"
-	cat git.log
-	echo
-	echo "git packet trace:"
-	cat git.packet.log
-	echo
-	echo "application log:"
-	cat app.log
-	echo
-	echo "tests failed"
-	exit 1
-fi
+
+prove -e "$SRCDIR"/tests/tap.sh -v "$SRCDIR"/tests/*.t
