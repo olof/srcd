@@ -1,5 +1,11 @@
 #!/bin/sh
 from=$1 to=$2
 ! [ -d "$from/.git" ] || from=$from/.git
-git init --bare "$to"
-cat "$from"/objects/pack/pack-*.pack | git -C "$to" unpack-objects
+git init -q --bare "$to"
+
+! [ -d "$from"/objects/pack ] ||
+	find "$from"/objects/pack -name 'pack-*.pack' -print0 | xargs -0 cat |
+		git -C "$to" unpack-objects
+
+! [ -d "$from"/objects ] ||
+	cp -nr "$from"/objects/[a-f0-9][a-f0-9] "$to"/objects/ 2>/dev/null || :
