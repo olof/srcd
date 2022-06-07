@@ -33,6 +33,7 @@ die() {
 }
 
 _dump_log() {
+	[ "$NO_DUMP_LOGS" ] && return
 	cmd=${3:-cat}
 	[ -e "$2" ] && {
 		printf "%s:\n" "$1"
