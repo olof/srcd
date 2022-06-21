@@ -31,6 +31,15 @@ for PROTO_VERSION in 0 1 2; do
 	git -C test$v push origin HEAD:refs/heads/master
 	is $r 0 "pushing test$v.git succeeds"
 
+	output=$(git clone "$BASE_URL/test$v.git" test$v-copy1 2>&1)
+	r=$?
+	is $r 0 "cloning test$v.git again succeeds"
+	[ $r -eq 0 ] || echo "$output" >&2
+
+	is "$(git -C test$v-copy1 rev-parse HEAD)" \
+	   "1efefe3f4b4018e4f053a6d47a238537f5b1bc81" \
+	   "new clone of test$v.git has updated rev"
+
 	# Test that we can push real changes
 	echo addendum >>test$v/file
 	git -C test$v add file
