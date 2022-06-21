@@ -41,7 +41,7 @@ for PROTO_VERSION in 0 1 2; do
 	   "new clone of test$v.git has updated rev"
 
 	# Test that we can push real changes
-	echo addendum >>test$v/file
+	echo >>test$v/file
 	git -C test$v add file
 	git -C test$v commit -q --message 'test change'
 
@@ -54,12 +54,12 @@ for PROTO_VERSION in 0 1 2; do
 	is $r 0 "pushing test$v.git succeeds"
 	[ $r -eq 0 ] || echo "$output" >&2
 
-	output=$(git clone "$BASE_URL/test$v.git" test$v-copy 2>&1)
+	output=$(git clone "$BASE_URL/test$v.git" test$v-copy2 2>&1)
 	r=$?
 	is $r 0 "cloning test$v.git again succeeds"
 	[ $r -eq 0 ] || echo "$output" >&2
 
-	is "$(git -C test$v-copy rev-parse HEAD)" \
+	is "$(git -C test$v-copy2 rev-parse HEAD)" \
 	   "73bcc819355b1b4e7bd3466e3f8233726515656d" \
 	   "new clone of test$v.git has updated rev"
 done
