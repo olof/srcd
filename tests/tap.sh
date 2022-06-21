@@ -142,7 +142,7 @@ description() {
 
 fixture() {
 	echo "# Loading fixtures '$1'"
-	cp "$TESTDIR/fixtures/$1/"* "$SRCD_REPO_DIR/"
+	cp -L "$TESTDIR/fixtures/$1/"* "$SRCD_REPO_DIR/"
 }
 
 is() {
