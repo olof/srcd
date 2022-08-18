@@ -1,0 +1,13 @@
+{application, flate,
+ [{description, "zlib library for use with git packs"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications, [kernel, stdlib]},
+  {env,[]},
+  {modules, []},
+
+  {licenses, ["Proprietary"]},
+  {links, #{
+    "Github" => "https://github.com/olof/srcd"
+  }}
+ ]}.
