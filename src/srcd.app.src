@@ -5,16 +5,16 @@
   {vsn, "0.1.0"},
   {registered, []},
   {mod, {srcd, []}},
-  {applications,
-   [kernel,
-    stdlib,
-    crypto,
+  {applications, [
+    kernel, stdlib, crypto,
     gproc,
-    ssh
-   ]},
+    ssh, flate
+  ]},
   {env,[]},
   {modules, []},
 
   {licenses, ["Proprietary"]},
-  {links, []}
+  {links, #{
+    "Github" => "https://github.com/olof/srcd"
+  }}
  ]}.
