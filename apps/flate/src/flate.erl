@@ -34,9 +34,7 @@
 
 -record(zlib, {op, input, state=data, output=[], read_count=0, write_count=0}).
 
--ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
--endif.
+-include("check.hrl").
 
 -define(op(Name),
 Name(#zlib{op=Name} = State) -> route(Name, State);
@@ -148,30 +146,6 @@ int_to_btype(2) -> huffman_dyn;
 int_to_btype(N) -> {invalid_zlib_btype, N}.
 
 -ifdef(TEST).
-
--define(check_full_inflate(Name, Input, Output, Tail),
-Name() ->
-  case catch in(Input) of
-    {ok, Result, Ctx} ->
-      Read = size(Input) - case Tail of
-        undefined -> 0;
-        _ -> size(Tail)
-      end,
-      Written = size(Output),
-
-      [
-        ?_assertEqual(Output, Result),
-        ?_assertEqual(Tail, tail(Ctx)),
-        ?_assertEqual({ok, [{read, Read}, {written, Written}]}, stats(Ctx))
-      ];
-    Return_Value_From_Inflate -> [
-      ?_assertMatch({ok, Output, #zlib{}}, Return_Value_From_Inflate)
-    ]
-  end
-).
--define(check_full_inflate(Name, Input, Output),
-       ?check_full_inflate(Name, Input, Output, <<>>)).
-
 ?check_full_inflate(inflate_empty_uncompressed_test_,
                     <<1, 0, 0, 255, 255>>, <<>>).
 ?check_full_inflate(inflate_a_uncompressed_test_,
@@ -183,5 +157,4 @@ Name() ->
 
 ?check_full_inflate(inflate_empty_huffman_fixed_test_,
                     <<3, 0, 0, 0, 0, 1>>, <<>>).
-
 -endif.
