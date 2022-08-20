@@ -1,6 +1,11 @@
 % ex:ts=2:sw=2:sts=2:et
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
+
 -module(flate).
+% This module tries to implement RFC 1951, to be able to support
+% inflating compressed objects.
+
+-export([in/1, in/2, de/1, tail/1, stats/1]).
 
 %%%% Inflating a compressed blob:
 % {more, Context2} = flate:in(Part1),
@@ -27,8 +32,7 @@
 %   {written, Written}
 % ] = flate:stats(Context).
 
--export([in/1, in/2, de/1, tail/1, stats/1]).
--record(zlib, {op, in, de, state, read_count=0, write_count=0}).
+-record(zlib, {op, input, state=data, output=[], read_count=0, write_count=0}).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -37,13 +41,13 @@
 -define(op(Name),
 Name(#zlib{op=Name} = State) -> route(Name, State);
 Name(#zlib{op=Op}) -> {badarg, op, Op};
-Name(Data) -> Name(#zlib{op=?FUNCTION_NAME, Name=Data, state=done})).
+Name(Data) -> Name(#zlib{op=Name, input=Data})).
 
 ?op(de).
-in(State = #zlib{de=De}, Data) when is_list(De) ->
-  deflate(State#zlib{de=lists:reverse([Data | De])});
-in(State = #zlib{de=De}, Data) ->
-  deflate(State#zlib{de=[De, Data]}).
+in(State = #zlib{input=De}, Data) when is_list(De) ->
+  deflate(State#zlib{input=lists:reverse([Data | De])});
+in(State = #zlib{input=De}, Data) ->
+  deflate(State#zlib{input=[De, Data]}).
 ?op(in).
 
 % route() is a hack, to workaround a limitation with erlang preprocessor; i
@@ -52,19 +56,81 @@ in(State = #zlib{de=De}, Data) ->
 route(in, State) -> inflate(State);
 route(de, State) -> deflate(State).
 
-inflate(#zlib{in= <<>>, state=data} = Ctx) -> {more, Ctx};
-inflate(#zlib{in= <<>>, de=Dec} = Ctx) -> {ok, Dec, finalize(Ctx, 0, 0)};
-inflate(#zlib{in=Enc, de=Dec} = Ctx) ->
+inflate(#zlib{input= <<>>, state=data} = Ctx) -> {more, Ctx};
+inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} = Ctx) ->
   % parse code tree, parse compressed bytes
-  % ONE BIT: start of block, BFINAL
-  % TWO BITS: type of block, BTYPE
-  % case int_to_btype(Btype) of
-  %   no_compression ->
-  %      % 1. skip to byte boundary
-  %      % 2. read LEN and NLEN
-  %      % 3. copy LEN bytes to output;
-  %   huffman_* ->
+  <<Head:8, _/binary>> = Enc,
+  <<ByteTail:5, Btype:2, Bfinal:1, Tail/binary>> = Enc,
+  {ok, DecBlock, NewTail, ReadLen} = inflate_block(int_to_btype(Btype), ByteTail, Tail),
+
+  NewCtx = Ctx#zlib{
+    input=NewTail,
+    output=case Dec of
+      undefine -> DecBlock;
+      _ -> [DecBlock | Dec]
+    end,
+    write_count=(Wc + size(DecBlock)),
+    read_count=(Rc + ReadLen + 1)
+  },
+
+  case Bfinal of
+    0 -> inflate(NewCtx);
+    1 -> finalize(NewCtx)
+  end.
+
+deflate(#zlib{input=Input} = Ctx) ->
+  Z = zlib:open(),
+  ok = zlib:'deflateInit'(Z, default),
+  [Output] = zlib:deflate(Z, Input, finish),
+  ok = zlib:'deflateEnd'(Z),
+  {ok, Output,
+       finalize(Ctx#zlib{read_count=size(Input), write_count=size(Output)})}.
+
+stats(#zlib{read_count=R, write_count=W}) -> {ok, [{read, R}, {written, W}]}.
+
+tail(#zlib{op=in, input=Tail}) -> Tail;
+tail(#zlib{op=de, output=Tail}) -> Tail.  % This shouldn't currently happen
+
+finalize(#zlib{output=Out} = Ctx) ->
+  {ok, iolist_to_binary(lists:reverse(Out)), Ctx#zlib{state=finalized, output=undefined}}.
+
+inflate_block(no_compression, _, Data) ->
+  <<Len:16, Nlen:16, Payload/binary>> = Data,
+  Nlen = 16#FFFF - Len,
+  <<Decoded:Len/bytes, Tail/binary>> = Payload,
+  {ok, Decoded, Tail, Len + 4};
+inflate_block(huffman_fixed, InitialBits, Data) ->
+  {ok, Codes, Payload} = huffman_code_tree(fixed, InitialBits, Data),
+  huff_n_puff(#{}, Payload);
+inflate_block(huffman_dyn, InitialBits, Data) ->
   %      % 0. if huffman_dyn: read code trees
+  {ok, Codes, Payload} = huffman_code_tree(dynamic, InitialBits, Data),
+  huff_n_puff(Codes, Payload).
+
+huffman_code_tree(fixed, Bits, Bytes) ->
+  % Literal value    Bits                 Codes
+  % -------------------------------------------------------
+  %       0 - 143     8         00110000 through  10111111
+  %     144 - 255     9        110010000 through 111111111
+  %     256 - 279     7          0000000 through   0010111
+  %     280 - 287     8         11000000 through  11000111
+  %
+  %%% we have a fixed code tree, so Bits + Bytes is all payload?
+  %%% What about byte alignment? Not a problem?
+  {not_implemented, huffman_fixed_code_tree};
+huffman_code_tree(dynamic, Bits, Bytes) ->
+  % Code trees are compressed, with a fixed code tree:
+  %  0-15: Represent code lengths of 0 - 15
+  %    16: Copy the previous code length 3 - 6 times.  The next 2 bits indicate
+  %        repeat length (0 = 3, ... , 3 = 6)
+  %           Example:  Codes 8, 16 (+2 bits 11),
+  %                     16 (+2 bits 10) will expand to
+  %                     12 code lengths of 8 (1 + 6 + 5)
+  %    17: Repeat a code length of 0 for 3 - 10 times. (3 bits of length)
+  %    18: Repeat a code length of 0 for 11 - 138 times (7 bits of length)
+  {not_implemented, huffman_dynamic_code_tree}.
+
+huff_n_puff(Codes, Data) ->
   %      % loop until end of block:
   %      %   1. decode literal length value from input stream
   %      %   2a. if value < 256: copy literal byte to output
@@ -73,63 +139,49 @@ inflate(#zlib{in=Enc, de=Dec} = Ctx) ->
   %      %          decode $distance from input stream
   %      %          move $distance bytes back in output
   %      %          copy LEN bytes from this pos to the output
-  %
-  % Do this until last block (BFINAL) is found
-  %
-  {ok, <<>>, finalize(Ctx, size(Enc), 0)}.
+  {not_implemented, huffman}.
 
-deflate(#zlib{de=Dec} = Ctx) ->
-  Z = zlib:open(),
-  ok = zlib:'deflateInit'(Z, default),
-  [Enc] = zlib:deflate(Z, Dec, finish),
-  ok = zlib:'deflateEnd'(Z),
-  {ok, Enc, finalize(Ctx, size(Dec), size(Enc))}.
 
-int_to_btype(0) -> no_compression.
-int_to_btype(1) -> huffman_fixed.
-int_to_btype(2) -> huffman_dyn.
-
-finalize(#zlib{op=Op, state=final, read_count=R, write_count=W}, Read, Written) ->
-  #zlib{op=Op,
-        state=finalized,
-        in=undefined,
-        de=undefined,
-        read_count=R+Read,
-        write_count=W+Written}.
-
-stats(#zlib{read_count=R, write_count=W}) -> {ok, [{read, R}, {written, W}]}.
-
-tail(#zlib{op=in, in=Tail}) -> Tail;
-tail(#zlib{op=de, de=Tail}) -> Tail.  % This shouldn't currently happen
+int_to_btype(0) -> no_compression;
+int_to_btype(1) -> huffman_fixed;
+int_to_btype(2) -> huffman_dyn;
+int_to_btype(N) -> {invalid_zlib_btype, N}.
 
 -ifdef(TEST).
 
--define(check_inflate(Name, Input, Output, Tail),
+-define(check_full_inflate(Name, Input, Output, Tail),
 Name() ->
-  {ok, Result, Ctx} = in(Input),
-  Read = size(Input) - case Tail of
-    undefined -> 0;
-    _ -> size(Tail)
-  end,
-  Written = size(Output),
+  case catch in(Input) of
+    {ok, Result, Ctx} ->
+      Read = size(Input) - case Tail of
+        undefined -> 0;
+        _ -> size(Tail)
+      end,
+      Written = size(Output),
 
-  [
-    ?_assertEqual(Output, Result),
-    ?_assertEqual(Tail, tail(Ctx)),
-    ?_assertEqual({ok, [
-      {read, Read},
-      {written, Written}
-    ]}, stats(Ctx))
-  ]
+      [
+        ?_assertEqual(Output, Result),
+        ?_assertEqual(Tail, tail(Ctx)),
+        ?_assertEqual({ok, [{read, Read}, {written, Written}]}, stats(Ctx))
+      ];
+    Return_Value_From_Inflate -> [
+      ?_assertMatch({ok, Output, #zlib{}}, Return_Value_From_Inflate)
+    ]
+  end
 ).
--define(check_inflate(Name, Input, Output),
-       ?check_inflate(Name, Input, Output, undefined)).
+-define(check_full_inflate(Name, Input, Output),
+       ?check_full_inflate(Name, Input, Output, <<>>)).
 
-?check_inflate(empty_inflation_test_,
-               <<120, 94, 3, 0, 0, 0, 0, 1>>, <<>>).
-?check_inflate(a_inflation_test_,
-               <<120, 94, 115, 4, 0, 0, 66, 0, 66>>, <<"A">>).
-?check_inflate(aaa_inflation_test_,
-               <<120, 94, 115, 116, 116, 4, 0, 1, 137, 0, 196>>, <<"AAA">>).
+?check_full_inflate(inflate_empty_uncompressed_test_,
+                    <<1, 0, 0, 255, 255>>, <<>>).
+?check_full_inflate(inflate_a_uncompressed_test_,
+                    <<1, 0, 1, 255, 254, "a">>, <<"a">>).
+?check_full_inflate(inflate_aaa_uncompressed_test_,
+                    <<1, 0, 3, 255, 252, "aaa">>, <<"aaa">>).
+?check_full_inflate(inflate_aaa_uncompressed_tail_test_,
+                    <<1, 0, 3, 255, 252, "aaaAAA">>, <<"aaa">>, <<"AAA">>).
+
+?check_full_inflate(inflate_empty_huffman_fixed_test_,
+                    <<3, 0, 0, 0, 0, 1>>, <<>>).
 
 -endif.
