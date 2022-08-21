@@ -5,7 +5,7 @@
 % This module tries to implement RFC 1951, to be able to support
 % inflating compressed objects.
 
--export([in/1, in/2, de/1, tail/1, stats/1]).
+-export([in/1, in/2, de/1, tail/1, stats/1, fixed/0]).
 
 %%%% Inflating a compressed blob:
 % {more, Context2} = flate:in(Part1),
@@ -139,6 +139,13 @@ huff_n_puff(Codes, Data) ->
   %      %          copy LEN bytes from this pos to the output
   {not_implemented, huffman}.
 
+fixed() ->
+  lists:concat([
+    [8 || X <- lists:seq(0, 143)],
+    [9 || X <- lists:seq(144, 255)],
+    [7 || X <- lists:seq(256, 279)],
+    [8 || X <- lists:seq(280, 287)]
+  ]).
 
 int_to_btype(0) -> no_compression;
 int_to_btype(1) -> huffman_fixed;
