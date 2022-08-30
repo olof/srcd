@@ -62,7 +62,7 @@ inflate(#zlib{input= <<>>, state=data} = Ctx) -> {more, Ctx};
 inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} = Ctx) ->
   % parse code tree, parse compressed bytes
   <<Head:8, _/binary>> = Enc,
-  <<ByteTail:5, Btype:2, Bfinal:1, Tail/binary>> = Enc,
+  <<ByteTail:5/bits, Btype:2, Bfinal:1, Tail/binary>> = Enc,
   {ok, DecBlock, NewTail, ReadLen} = inflate_block(int_to_btype(Btype), ByteTail, Tail),
 
   NewCtx = Ctx#zlib{
