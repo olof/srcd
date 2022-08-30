@@ -93,6 +93,10 @@ stats(#zlib{read_count=R, write_count=W}) -> {ok, [{read, R}, {written, W}]}.
 tail(#zlib{op=in, input=Tail}) -> Tail;
 tail(#zlib{op=de, output=Tail}) -> Tail.  % This shouldn't currently happen
 
+finalize(#zlib{input={_, Data}} = Ctx) ->
+  % TODO If we have an incomplete byte, we just throw it away now. That
+  %      may, or may not, be an ok thing to do.
+  finalize(Ctx#zlib{input=Data});
 finalize(#zlib{output=Out} = Ctx) ->
   {ok, iolist_to_binary(lists:reverse(Out)), Ctx#zlib{state=finalized, output=undefined}}.
 
