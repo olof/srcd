@@ -148,10 +148,10 @@ huff_n_puff(Codes, Data) ->
 
 fixed() ->
   lists:concat([
-    [8 || X <- lists:seq(0, 143)],
-    [9 || X <- lists:seq(144, 255)],
-    [7 || X <- lists:seq(256, 279)],
-    [8 || X <- lists:seq(280, 287)]
+    [{X, 8} || X <- lists:seq(0, 143)],
+    [{X, 9} || X <- lists:seq(144, 255)],
+    [{X, 7} || X <- lists:seq(256, 279)],
+    [{X, 8} || X <- lists:seq(280, 287)]
   ]).
 
 int_to_btype(0) -> no_compression;
