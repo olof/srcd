@@ -100,7 +100,8 @@ finalize(#zlib{input={_, Data}} = Ctx) ->
   %      may, or may not, be an ok thing to do.
   finalize(Ctx#zlib{input=Data});
 finalize(#zlib{output=Out} = Ctx) ->
-  {ok, iolist_to_binary(lists:reverse(Out)), Ctx#zlib{state=finalized, output=undefined}}.
+  {ok, iolist_to_binary(lists:reverse(Out)),
+   Ctx#zlib{state=finalized, output=undefined}}.
 
 inflate_block(no_compression, _, Data) ->
   <<Len:16, Nlen:16, Payload/binary>> = Data,
