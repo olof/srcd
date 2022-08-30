@@ -68,7 +68,7 @@ inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} 
   NewCtx = Ctx#zlib{
     input=NewTail,
     output=case Dec of
-      undefine -> DecBlock;
+      undefined -> DecBlock;
       _ -> [DecBlock | Dec]
     end,
     write_count=(Wc + size(DecBlock)),
