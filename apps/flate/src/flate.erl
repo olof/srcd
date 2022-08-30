@@ -114,41 +114,13 @@ inflate_block(huffman_dyn, InitialBits, Data) ->
   {ok, Codes, Payload} = huffman_code_tree(dynamic, InitialBits, Data),
   huff_n_puff(Codes, Payload).
 
-huffman_code_tree(fixed, Bits, Bytes) ->
+fixed() ->
   % Literal value    Bits                 Codes
   % -------------------------------------------------------
   %       0 - 143     8         00110000 through  10111111
   %     144 - 255     9        110010000 through 111111111
   %     256 - 279     7          0000000 through   0010111
   %     280 - 287     8         11000000 through  11000111
-  %
-  %%% we have a fixed code tree, so Bits + Bytes is all payload?
-  %%% What about byte alignment? Not a problem?
-  {not_implemented, huffman_fixed_code_tree};
-huffman_code_tree(dynamic, Bits, Bytes) ->
-  % Code trees are compressed, with a fixed code tree:
-  %  0-15: Represent code lengths of 0 - 15
-  %    16: Copy the previous code length 3 - 6 times.  The next 2 bits indicate
-  %        repeat length (0 = 3, ... , 3 = 6)
-  %           Example:  Codes 8, 16 (+2 bits 11),
-  %                     16 (+2 bits 10) will expand to
-  %                     12 code lengths of 8 (1 + 6 + 5)
-  %    17: Repeat a code length of 0 for 3 - 10 times. (3 bits of length)
-  %    18: Repeat a code length of 0 for 11 - 138 times (7 bits of length)
-  {not_implemented, huffman_dynamic_code_tree}.
-
-huff_n_puff(Codes, Data) ->
-  %      % loop until end of block:
-  %      %   1. decode literal length value from input stream
-  %      %   2a. if value < 256: copy literal byte to output
-  %      %   2b. elif end of block (256)? break
-  %      %   2c. elif 256 > value < 286:
-  %      %          decode $distance from input stream
-  %      %          move $distance bytes back in output
-  %      %          copy LEN bytes from this pos to the output
-  {not_implemented, huffman}.
-
-fixed() ->
   lists:concat([
     [{X, 8} || X <- lists:seq(0, 143)],
     [{X, 9} || X <- lists:seq(144, 255)],
