@@ -5,7 +5,11 @@
 % This module tries to implement RFC 1951, to be able to support
 % inflating compressed objects.
 
--export([in/1, in/2, de/1, tail/1, stats/1, fixed/0]).
+-export([in/1, in/2, de/1, tail/1, stats/1]).
+
+-ifdef(TEST).
+-export([fixed/0]).
+-endif.
 
 %%%% Inflating a compressed blob:
 % {more, Context2} = flate:in(Part1),
