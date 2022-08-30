@@ -111,9 +111,10 @@ inflate_block(no_compression, _, Data) ->
 inflate_block(huffman_fixed, InitialBits, Data) ->
   flate_huffman:decode(fixed(), {InitialBits, Data});
 inflate_block(huffman_dyn, InitialBits, Data) ->
-  %      % 0. if huffman_dyn: read code trees
-  {ok, Codes, Payload} = huffman_code_tree(dynamic, InitialBits, Data),
-  huff_n_puff(Codes, Payload).
+  % TODO: maybe i forgot to do byte accounting on this?
+  % TODO: codetree doesn't exist. So there's that.
+  {ok, Codes, D} = flate_huffman:codetree(dynamic, {InitialBits, Data}),
+  flate_huffman:decode(Codes, D).
 
 fixed() ->
   % Literal value    Bits                 Codes
