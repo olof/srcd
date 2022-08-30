@@ -7,6 +7,8 @@
 
 -export([in/1, in/2, de/1, tail/1, stats/1]).
 
+-include_lib("kernel/include/logger.hrl").
+
 -ifdef(TEST).
 -export([fixed/0]).
 -endif.
