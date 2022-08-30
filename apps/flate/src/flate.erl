@@ -106,8 +106,7 @@ inflate_block(no_compression, _, Data) ->
   <<Decoded:Len/bytes, Tail/binary>> = Payload,
   {ok, Decoded, Tail, Len + 4};
 inflate_block(huffman_fixed, InitialBits, Data) ->
-  {ok, Codes, Payload} = huffman_code_tree(fixed, InitialBits, Data),
-  huff_n_puff(#{}, Payload);
+  flate_huffman:decode(fixed(), {InitialBits, Data});
 inflate_block(huffman_dyn, InitialBits, Data) ->
   %      % 0. if huffman_dyn: read code trees
   {ok, Codes, Payload} = huffman_code_tree(dynamic, InitialBits, Data),
