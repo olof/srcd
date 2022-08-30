@@ -55,12 +55,17 @@ in(Data) ->
   %io:format(standard_error, "zlib tail: ~.2B~n", [Tail]),
   case flate:in(Tail) of
     {more, Ctx} -> {more, Ctx};
-    {ok, Res, Ctx} -> {ok, Res, Ctx}
+    {ok, Res, Ctx} -> finalize(Res, Ctx)
   end.
 in(Ctx, Data) -> flate:in(Ctx, Data).
 de(Data) -> flate:de(Data).
 tail(Ctx) -> flate:tail(Ctx).
 stats(Ctx) -> flate:stats(Ctx).
+
+finalize(Res, Ctx) ->
+  <<Checksum:32/integer, Tail/binary>> = tail(Ctx),
+  ok = flate_adler32:check(Checksum, Res),
+  {ok, Res, Ctx}.
 
 -ifdef(TEST).
 ?check_full_inflate(zopfli_empty_inflation_test_,
