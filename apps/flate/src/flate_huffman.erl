@@ -38,13 +38,14 @@ decode(Lengths, Data) ->
   %             decode $distance from input stream
   %             move $distance bytes back in output
   %             copy LEN bytes from this pos to the output
-  decode(Lengths, setup(Lengths), Data, []).
-decode(Lengths, Codes, Data, Symbols) ->
+  decode(Lengths, setup(Lengths), Data, [], 0).
+decode(Lengths, Codes, Data, Symbols, Bits) ->
   case decode_symbol(Codes, Data) of
     {ok, {Len, Code, 256}, Tail} ->
-      {ok, list_to_binary(lists:reverse(Symbols)), Tail, 0};
+      {ok, list_to_binary(lists:reverse(Symbols)), Tail,
+	   (Bits + Len) div 8 + case Bits + Len rem 8 of 0 -> 0; _ -> 1 end};
     {ok, {Len, Code, Symbol}, Tail} when Symbol < 256 ->
-      decode(Lengths, Codes, Tail, [Symbol | Symbols]);
+      decode(Lengths, Codes, Tail, [Symbol | Symbols], Bits + Len);
     {ok, {Len, Code, Symbol}, Tail} ->
       {error, not_implemented, repetitions, {Len, Code, Symbol}}
   end.
@@ -54,9 +55,9 @@ decode(Lengths, Codes, Data, Symbols) ->
 decode_test_() -> lists:concat([
   [
     ?_assertEqual(Expected, decode(flate:fixed(), In)) || {In, Expected} <- [
-      {{<<0:7>>, <<>>}, {ok, <<>>, end_of_stream, 0}},
-      {{<<>>, <<0>>},   {ok, <<>>, {<<0:1>>, <<>>}, 0}},
-      {<<0>>,           {ok, <<>>, {<<0:1>>, <<>>}, 0}}
+      {{<<0:7>>, <<>>}, {ok, <<>>, end_of_stream, 1}},
+      {{<<>>, <<0>>},   {ok, <<>>, {<<0:1>>, <<>>}, 1}},
+      {<<0>>,           {ok, <<>>, {<<0:1>>, <<>>}, 1}}
     ]
   ]
 ]).
