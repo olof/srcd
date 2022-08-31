@@ -146,5 +146,6 @@ int_to_btype(N) -> {invalid_zlib_btype, N}.
                     <<1, 0, 3, 255, 252, "aaaAAA">>, <<"aaa">>, <<"AAA">>).
 
 ?check_full_inflate(inflate_empty_huffman_fixed_test_,
-                    <<3, 0, 0, 0, 0, 1>>, <<>>).
+                    <<3, 0>>, <<>>).
+
 -endif.
