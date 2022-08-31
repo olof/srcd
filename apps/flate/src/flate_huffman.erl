@@ -29,10 +29,6 @@ maxv([{_, _}|T], Max) -> maxv(T, Max);
 maxv([], Max) -> Max.
 
 decode(Lengths, Data) ->
-  Counts = counts(Lengths),
-  ok = check(Counts),
-  {ok, Offsets} = offsets(lists:seq(1, maxv(Lengths)), Counts),
-  Codes = codes(lists:seq(0, maxv(Offsets)), Lengths, Offsets),
   %?LOG_NOTICE("Lengths: ~p~nOffsets: ~p~nCodes: ~p", [Counts, Offsets, Codes]),
   %    loop until end of block:
   %      1. decode literal length value from input stream
@@ -42,7 +38,7 @@ decode(Lengths, Data) ->
   %             decode $distance from input stream
   %             move $distance bytes back in output
   %             copy LEN bytes from this pos to the output
-  decode(Lengths, Codes, Data, []).
+  decode(Lengths, setup(Lengths), Data, []).
 decode(Lengths, Codes, Data, Symbols) ->
   case decode_symbol(Codes, Data) of
     {ok, {Len, Code, 256}, Tail} ->
@@ -95,7 +91,17 @@ decode_symbol(Codes, Cand, {<<>>, <<Byte:1/binary, Data/binary>>}) ->
 decode_symbol(Codes, Cand, {<<>>, <<>>}) ->
   {error, not_enough_data}.
 
+setup(Lengths) ->
+  Counts = counts(Lengths),
+  ok = check(Counts),
+  {ok, Offsets} = offsets(lists:seq(1, maxv(Lengths)), Counts),
+  codes(lists:seq(0, maxv(Offsets)), Lengths, Offsets).
+
 -ifdef(TEST).
+
+setup_test_() -> [
+  ?_assertEqual(?TEST_ABCDEFGH_CODES, setup(?TEST_ABCDEFGH_INPUT))
+].
 
 -endif.
 
