@@ -96,6 +96,42 @@ decode_symbol(Codes, Cand, {<<>>, <<Byte:1/binary, Data/binary>>}) ->
 decode_symbol(Codes, Cand, {<<>>, <<>>}) ->
   {error, not_enough_data}.
 
+-ifdef(TEST).
+
+decode_abcdefgh_symbol_test_() -> [
+  ?_assertEqual(
+    {ok, SymbolMatch, Tail},
+    decode_symbol(?TEST_ABCDEFGH_CODES, Encoded)
+  ) || {Encoded, SymbolMatch, Tail} <- [
+    {<<2:3>>, {3, 2, $A}, end_of_stream}
+  ]
+].
+
+decode_test_symbols_test_() -> [
+  ?_assertEqual(
+    {ok, {Len, Code, Val}, end_of_stream},
+    decode_symbol(?TEST_ABCDEFGH_CODES, <<Code:Len>>)) ||
+    {Val, {Len, Code}} <- ?TEST_ABCDEFGH_CODES
+].
+
+decode_fixed_symbols_test() ->
+  % This assumes a working setup(), otherwise we won't know what
+  % we are looking up codes in. Also: make it a static test, not
+  % a generator, because we don't want each symbol to count as a
+  % specific test (or else about 90% of our test case count would
+  % be this, already described as not so useful, test. It does
+  % hold some value, since we get to see that it works nicely even
+  % for real world code trees.
+  Codes = setup(flate:fixed()),
+  [
+    ?assertEqual(
+      {ok, {Len, Code, Val}, end_of_stream},
+      decode_symbol(Codes, <<Code:Len>>)) ||
+      {Val, {Len, Code}} <- Codes
+  ].
+
+-endif.
+
 setup(Lengths) ->
   Counts = counts(Lengths),
   ok = check(Counts),
