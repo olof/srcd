@@ -79,7 +79,7 @@ decode_symbol(_, {Len, _}, _) when Len > 15 ->
   {error, not_enough_data};
 decode_symbol(Codes, {Len, Cand}, {<<H:1/integer, T/bitstring>>, Data})  ->
   NewLen = Len + 1,
-  NewCode = Cand bsr 1 + H,
+  NewCode = Cand bsl 1 + H,
   NewData = {T, Data},
   case lists:keyfind({NewLen, NewCode}, 2, Codes) of
     false ->
