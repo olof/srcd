@@ -54,7 +54,7 @@ decode(Lengths, Codes, Data, Symbols) ->
 decode_test_() -> lists:concat([
   [
     ?_assertEqual(Expected, decode(flate:fixed(), In)) || {In, Expected} <- [
-      {{<<0:7>>, <<>>}, {ok, <<>>, {<<   >>, <<>>}, 0}},
+      {{<<0:7>>, <<>>}, {ok, <<>>, end_of_stream, 0}},
       {{<<>>, <<0>>},   {ok, <<>>, {<<0:1>>, <<>>}, 0}},
       {<<0>>,           {ok, <<>>, {<<0:1>>, <<>>}, 0}}
     ]
@@ -77,7 +77,6 @@ decode_symbol(Codes, {C, Tail}) ->
 decode_symbol(_, {Len, _}, _) when Len > 15 ->
   ?LOG_NOTICE("decode_symbol0: ~p", [Len]),
   {error, not_enough_data};
-
 decode_symbol(Codes, {Len, Cand}, {<<H:1/integer, T/bitstring>>, Data})  ->
   NewLen = Len + 1,
   NewCode = Cand bsr 1 + H,
@@ -86,7 +85,11 @@ decode_symbol(Codes, {Len, Cand}, {<<H:1/integer, T/bitstring>>, Data})  ->
     false ->
       decode_symbol(Codes, {NewLen, NewCode}, NewData);
     {Val, {NewLen, NewCode}} ->
-      {ok, {NewLen, NewCode, Val}, NewData}
+      case NewData of
+        {<<>>, <<>>} -> {ok, {NewLen, NewCode, Val}, end_of_stream};
+        {<<>>, Bin} -> {ok, {NewLen, NewCode, Val}, Bin};
+	{_, _} = Tail -> {ok, {NewLen, NewCode, Val}, Tail}
+      end
   end;
 decode_symbol(Codes, Cand, {<<>>, <<Byte:1/binary, Data/binary>>}) ->
   decode_symbol(Codes, Cand, {Byte, Data});
