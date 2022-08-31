@@ -78,7 +78,9 @@ decode_symbol(Codes, {C, Tail}) ->
 decode_symbol(_, {Len, _}, _) when Len > 15 ->
   ?LOG_NOTICE("decode_symbol0: ~p", [Len]),
   {error, not_enough_data};
-decode_symbol(Codes, {Len, Cand}, {<<H:1/integer, T/bitstring>>, Data})  ->
+decode_symbol(Codes, {Len, Cand}, {Bits, Data}) when bit_size(Bits) > 0 ->
+  BitTailSize = bit_size(Bits) - 1,
+  <<T:BitTailSize/bitstring, H:1>> = Bits,
   NewLen = Len + 1,
   NewCode = Cand bsl 1 + H,
   NewData = {T, Data},
