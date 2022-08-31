@@ -65,6 +65,8 @@ decode_test_() -> lists:concat([
 
 decode_symbol(Codes, Bin) when is_binary(Bin) ->
   decode_symbol(Codes, {0, 0}, {<<>>, Bin});
+decode_symbol(Codes, Bin) when is_bitstring(Bin) ->
+  decode_symbol(Codes, {0, 0}, {Bin, <<>>});
 decode_symbol(Codes, {<<>>, <<C:1/binary, Tail/binary>>}) ->
   decode_symbol(Codes, {0, 0}, {C, Tail});
 decode_symbol(Codes, {C, Tail}) when is_integer(C) ->
