@@ -13,14 +13,24 @@
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
--define(TEST_ABCDEFGH_INPUT, [{$A, 3}, {$B, 3}, {$C, 3}, {$D, 3},
-                              {$E, 3}, {$F, 2}, {$G, 4}, {$H, 4}]).
+%  V  Len  Code  2#Code
+%  --------------------
+%  a  3       2    010
+%  b  3       3    011
+%  c  3       4    100
+%  d  3       5    101
+%  e  3       6    110
+%  f  2       0     00
+%  g  4      14   1110
+%  h  4      15   1111
+-define(TEST_ABCDEFGH_INPUT, [{a, 3}, {b, 3}, {c, 3}, {d, 3},
+                              {e, 3}, {f, 2}, {g, 4}, {h, 4}]).
 -define(TEST_ABCDEFGH_COUNT, #{2 => 1, 3 => 5, 4 => 2}).
 -define(TEST_ABCDEFGH_OFS,   [{1, 0}, {2, 0}, {3, 2}, {4, 14}]).
--define(TEST_ABCDEFGH_CODES, [{$A, {3,  2}}, {$B, {3,  3}},
-                              {$C, {3,  4}}, {$D, {3,  5}},
-                              {$E, {3,  6}}, {$F, {2,  0}},
-                              {$G, {4, 14}}, {$H, {4, 15}}]).
+-define(TEST_ABCDEFGH_CODES, [{a, {3,  2}}, {b, {3,  3}},
+                              {c, {3,  4}}, {d, {3,  5}},
+                              {e, {3,  6}}, {f, {2,  0}},
+                              {g, {4, 14}}, {h, {4, 15}}]).
 -endif.
 
 maxv(KV) -> maxv(KV, 0).
@@ -105,7 +115,7 @@ decode_test_symbols_test_() -> [
     {ok, SymbolMatch, Tail},
     decode_symbol(?TEST_ABCDEFGH_CODES, Encoded)
   ) || {Encoded, SymbolMatch, Tail} <- [
-    {<<2:3>>, {3, 2, $A}, end_of_stream}
+    {<<2:3>>, {3, 2, a}, end_of_stream}
   ]
 ].
 
