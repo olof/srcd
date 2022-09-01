@@ -41,12 +41,8 @@ in(Data) ->
   0 = HDRVal rem 31,
 
   % deflate is 8, and only thing we support.
-  io:format(standard_error, "zlib hdr: ~-016.16B~n", [HDRVal]),
-  io:format(standard_error, "zlib hdr: ~-016.2B~n", [HDRVal]),
   <<CMF:1/binary, FLG:1/binary>> = HDR,
   <<FLGVal:4, CMFVal:4>> = CMF,
-  io:format(standard_error, "zlib cmf: ~-08.2B~n", [CMFVal]),
-  io:format(standard_error, "zlib flg: ~-08.2B~n", [FLGVal]),
   <<CINFO:4, CM:4>> = CMF,
   <<_FLEVEL:2, FDICT:1, _FCHECK:5>> = FLG,
   8 = CM,
