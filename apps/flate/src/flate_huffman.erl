@@ -118,9 +118,10 @@ decode_symbol(_, _, {<<>>, <<>>}) ->
 decode_test_symbols_test_() -> [
   ?_assertEqual(
     {ok, SymbolMatch, Tail},
-    decode_symbol(?TEST_ABCDEFGH_CODES, Encoded)
-  ) || {Encoded, SymbolMatch, Tail} <- [
-    {<<2:3>>, {3, 2, a}, end_of_stream}
+    decode_symbol(Codes, Encoded)
+  ) || {Codes, Encoded, SymbolMatch, Tail} <- [
+    {?TEST_ABCD_CODES, <<2:2>>, {2, 2, a}, end_of_stream},
+    {?TEST_ABCDEFGH_CODES, <<2:3>>, {3, 2, a}, end_of_stream}
   ]
 ].
 
