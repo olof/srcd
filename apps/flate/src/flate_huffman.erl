@@ -94,9 +94,7 @@ decode_symbol(Codes, {C, Tail}) ->
 
 decode_symbol(_, {Len, _}, _) when Len > 15 ->
   {error, invalid_code};
-decode_symbol(Codes, {Len, Cand}, {Bits, Data}) when bit_size(Bits) > 0 ->
-  BitTailSize = bit_size(Bits) - 1,
-  <<T:BitTailSize/bitstring, H:1>> = Bits,
+decode_symbol(Codes, {Len, Cand}, {<<H:1, T/bits>>, Data}) ->
   NewLen = Len + 1,
   NewCode = Cand bsl 1 + H,
   NewData = {T, Data},
