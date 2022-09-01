@@ -41,12 +41,12 @@ decode(Lengths, Data) ->
   decode(Lengths, setup(Lengths), Data, [], 0).
 decode(Lengths, Codes, Data, Symbols, Bits) ->
   case decode_symbol(Codes, Data) of
-    {ok, {Len, Code, 256}, Tail} ->
+    {ok, {Len, _, 256}, Tail} ->
       {ok, list_to_binary(lists:reverse(Symbols)), Tail,
 	   (Bits + Len) div 8 + case Bits + Len rem 8 of 0 -> 0; _ -> 1 end};
-    {ok, {Len, Code, Symbol}, Tail} when Symbol < 256 ->
+    {ok, {Len, _, Symbol}, Tail} when Symbol < 256 ->
       decode(Lengths, Codes, Tail, [Symbol | Symbols], Bits + Len);
-    {ok, {Len, Code, Symbol}, Tail} ->
+    {ok, {Len, Code, Symbol}, _} ->
       {error, not_implemented, repetitions, {Len, Code, Symbol}}
   end.
 
@@ -76,8 +76,7 @@ decode_symbol(Codes, {C, Tail}) ->
   decode_symbol(Codes, {0, 0}, {C, Tail}).
 
 decode_symbol(_, {Len, _}, _) when Len > 15 ->
-  ?LOG_NOTICE("decode_symbol0: ~p", [Len]),
-  {error, not_enough_data};
+  {error, invalid_code};
 decode_symbol(Codes, {Len, Cand}, {Bits, Data}) when bit_size(Bits) > 0 ->
   BitTailSize = bit_size(Bits) - 1,
   <<T:BitTailSize/bitstring, H:1>> = Bits,
@@ -96,7 +95,7 @@ decode_symbol(Codes, {Len, Cand}, {Bits, Data}) when bit_size(Bits) > 0 ->
   end;
 decode_symbol(Codes, Cand, {<<>>, <<Byte:1/binary, Data/binary>>}) ->
   decode_symbol(Codes, Cand, {Byte, Data});
-decode_symbol(Codes, Cand, {<<>>, <<>>}) ->
+decode_symbol(_, _, {<<>>, <<>>}) ->
   {error, not_enough_data}.
 
 -ifdef(TEST).
