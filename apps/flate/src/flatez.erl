@@ -63,10 +63,10 @@ de(Data) -> flate:de(Data).
 tail(Ctx) -> flate:tail(Ctx).
 stats(Ctx) -> flate:stats(Ctx).
 
-finalize(Res, Ctx) ->
-  <<Checksum:32/integer, Tail/binary>> = tail(Ctx),
-  ok = flate_adler32:check(Checksum, Res),
-  {ok, Res, Ctx}.
+finalize(Res, #zlib{input= <<Checksum:32, Tail/binary>>,
+		    read_count=Rc} = Ctx) ->
+  {flate_adler32:check(Res, Checksum), Res,
+   Ctx#zlib{read_count=Rc+6, input=Tail}}.
 
 -ifdef(TEST).
 ?check_full_inflate(zopfli_empty_inflation_test_,
