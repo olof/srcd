@@ -65,6 +65,10 @@ decode(Lengths, Codes, Data, Symbols, Bits) ->
 
 -ifdef(TEST).
 
+% The semantics of decode only works for code trees that contain the symbol
+% 256... This is perhaps a sign of bad api design. How do I in the general
+% case determine if a huffman stream is complete? (derp, use deflate!)
+% TODO: need to add tests for dynamic codes
 decode_test_() -> lists:concat([
   [
     ?_assertEqual(Expected, decode(flate:fixed(), In)) || {In, Expected} <- [
