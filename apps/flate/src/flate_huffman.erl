@@ -113,7 +113,7 @@ decode_abcdefgh_symbols_test_() -> [
   ?_assertEqual(
     {ok, {Len, Code, Val}, end_of_stream},
     decode_symbol(?TEST_ABCDEFGH_CODES, <<Code:Len>>)) ||
-    {Val, {Len, Code}} <- ?TEST_ABCDEFGH_CODES
+      {Val, {Len, Code}} <- ?TEST_ABCDEFGH_CODES
 ].
 
 decode_fixed_symbols_test() ->
