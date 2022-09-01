@@ -32,6 +32,7 @@
 %   {written, Written}
 % ] = flate:stats(Context).
 
+-include("record.hrl").
 -include("check.hrl").
 
 in(Data) ->
