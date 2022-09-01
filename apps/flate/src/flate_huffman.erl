@@ -100,7 +100,7 @@ decode_symbol(_, _, {<<>>, <<>>}) ->
 
 -ifdef(TEST).
 
-decode_abcdefgh_symbol_test_() -> [
+decode_test_symbols_test_() -> [
   ?_assertEqual(
     {ok, SymbolMatch, Tail},
     decode_symbol(?TEST_ABCDEFGH_CODES, Encoded)
@@ -109,7 +109,7 @@ decode_abcdefgh_symbol_test_() -> [
   ]
 ].
 
-decode_test_symbols_test_() -> [
+decode_abcdefgh_symbols_test_() -> [
   ?_assertEqual(
     {ok, {Len, Code, Val}, end_of_stream},
     decode_symbol(?TEST_ABCDEFGH_CODES, <<Code:Len>>)) ||
