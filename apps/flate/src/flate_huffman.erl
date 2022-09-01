@@ -51,15 +51,6 @@ maxv([{_, _}|T], Max) -> maxv(T, Max);
 maxv([], Max) -> Max.
 
 decode(Lengths, Data) ->
-  %?LOG_NOTICE("Lengths: ~p~nOffsets: ~p~nCodes: ~p", [Counts, Offsets, Codes]),
-  %    loop until end of block:
-  %      1. decode literal length value from input stream
-  %      2a. if value < 256: copy literal byte to output
-  %      2b. elif end of block (256)? break
-  %      2c. elif 256 > value < 286:
-  %             decode $distance from input stream
-  %             move $distance bytes back in output
-  %             copy LEN bytes from this pos to the output
   decode(Lengths, setup(Lengths), Data, [], 0).
 decode(Lengths, Codes, Data, Symbols, Bits) ->
   case decode_symbol(Codes, Data) of
