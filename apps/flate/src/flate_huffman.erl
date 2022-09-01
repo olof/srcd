@@ -15,6 +15,18 @@
 
 %  V  Len  Code  2#Code
 %  --------------------
+%  a  2       2     10
+%  b  1       0      0
+%  c  3       6    110
+%  d  3       7    111
+-define(TEST_ABCD_INPUT, [{a, 2}, {b, 1}, {c, 3}, {d, 3}]).
+-define(TEST_ABCD_COUNT, #{1 => 1, 2 => 1, 3 => 2}).
+-define(TEST_ABCD_OFS,   [{1, 0}, {2, 1}, {3, 2}]).
+-define(TEST_ABCD_CODES, [{a, {2,  2}}, {b, {1,  0}},
+                          {c, {3,  6}}, {d, {3,  7}}]).
+
+%  V  Len  Code  2#Code
+%  --------------------
 %  a  3       2    010
 %  b  3       3    011
 %  c  3       4    100
@@ -118,6 +130,14 @@ decode_test_symbols_test_() -> [
     {<<2:3>>, {3, 2, a}, end_of_stream}
   ]
 ].
+
+decode_abcd_symbols_test_() ->
+  [Code1 | _] = Codes = ?TEST_ABCD_CODES,
+  [
+    ?_assertEqual({ok, {Len, Code, Val}, end_of_stream},
+                  decode_symbol(Codes, <<Code:Len>>)) ||
+        {Val, {Len, Code}} <- [Code1]
+  ].
 
 decode_abcdefgh_symbols_test_() -> [
   ?_assertEqual(
