@@ -109,7 +109,7 @@ decode_symbol(Codes, {Len, Cand}, {<<H:1, T/bits>>, Data}) ->
       end
   end;
 decode_symbol(Codes, Cand, {<<>>, <<Byte:1/binary, Data/binary>>}) ->
-  decode_symbol(Codes, Cand, {Byte, Data});
+  decode_symbol(Codes, Cand, {flate_utils:reverse_byte(Byte), Data});
 decode_symbol(_, _, {<<>>, <<>>}) ->
   {error, not_enough_data}.
 
