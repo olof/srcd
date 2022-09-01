@@ -16,6 +16,7 @@
 
 checksum(Data) when is_binary(Data) ->
   checksum(binary_to_list(Data));
+checksum([]) -> 1;
 checksum([H|Data]) ->
   [S|_] = L = lists:foldl(fun(N, [X|_] = Acc) -> [(N+X) rem ?MOD|Acc] end,
                           [0], [H+1 | Data]),
@@ -40,6 +41,7 @@ known_checksum_test_() -> lists:concat([
     ?_assertEqual(int(Checksum), checksum(list_to_binary(Input))),
     ?_assertEqual(ok, check(Input, Checksum))
   ] || {Input, Checksum} <- [
+    {"", 1},
     {"W", 5767256},
     {"Wikipedia", 300286872},           % well documented encyclopedic fact!
     {"test", 73204161},
