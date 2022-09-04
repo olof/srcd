@@ -182,14 +182,16 @@ int_to_btype(N) -> {invalid_zlib_btype, N}.
 ?check_full_inflate(inflate_empty_huffman_fixed_test_,
                     <<3, 0>>, <<>>).
 
-%% perl -e 'print map { chr } 75, 4, 0' | ~/src/github/madler/infgen/infgen -bb
+%% perl -e '
+%%   print map { chr } 75, 4, 0
+%% ' | github/madler/infgen/infgen -dd -r
 %% ! infgen 3.0 output
 %% !
-%% last			! 1
-%% fixed		! 01
-%% literal 'a		! 10001001
-%% end			! 0000000
-%% 			! 000000
+%% last            ! 1
+%% fixed           ! 01
+%% literal 'a      ! 10001001
+%% end             ! 0000000
+%%                 ! 000000
 ?check_full_inflate(inflate_a_huffman_fixed_test_,
                     <<75, 4, 0>>, <<"a">>).
 
