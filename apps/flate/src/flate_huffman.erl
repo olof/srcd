@@ -135,7 +135,8 @@ init(Lengths) ->
 
 -ifdef(TEST).
 
-setup_test_() -> [
+init_test_() -> [
+  ?_assertEqual(?TEST_ABCD_CODES, init(?TEST_ABCD_INPUT)),
   ?_assertEqual(?TEST_ABCDEFGH_CODES, init(?TEST_ABCDEFGH_INPUT))
 ].
 
