@@ -105,7 +105,11 @@ finalize(#zlib{output=Out} = Ctx) ->
    Ctx#zlib{state=finalized, output=undefined}}.
 
 inflate_block(no_compression, _, Data) ->
+  % NOTE: Uncompressed blocks, RFC 1951 section 3.2.1:
+  % > Any bits of input up to the next byte boundary are ignored.
   <<Len:16, Nlen:16, Payload/binary>> = Data,
+  % > LEN is the number of data bytes in the block.  NLEN is the
+  % > one's complement of LEN.
   Nlen = 16#FFFF - Len,
   <<Decoded:Len/bytes, Tail/binary>> = Payload,
   {ok, Decoded, Tail, Len + 4};
