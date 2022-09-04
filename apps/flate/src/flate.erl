@@ -115,10 +115,27 @@ inflate_block(no_compression, _, Data) ->
   {ok, Decoded, Tail, Len + 4};
 inflate_block(huffman_fixed, InitialBits, Data) ->
   inflate_symbols(flate_huffman:init(fixed()), {InitialBits, Data});
-inflate_block(huffman_dyn, InitialBits, Data) ->
+inflate_block(huffman_dyn, HLIT, <<HDIST:5, HCLEN:4, Data/binary>>) ->
+  CodeLen = (HCLEN + 4) * 3,
+  TrailBitLen = abs(8 - CodeLen) rem 8,
+  <<CodeAlphabet:CodeLen/bits, Tail/bits>> = Data,
+  <<InitialBits:TrailBitLen/bits, BinTail/binary>> = Tail,
+  % HLIT + 257 code lengths for the literal/length alphabet,
+  %  encoded using the code length Huffman code
+
+  % HDIST + 1 code lengths for the distance alphabet,
+  %    encoded using the code length Huffman code
+
+  % The actual compressed data of the block,
+  %    encoded using the literal/length and distance Huffman
+  %    codes
+
+  % The literal/length symbol 256 (end of data),
+  %    encoded using the literal/length Huffman code
+
   % TODO: maybe i forgot to do byte accounting on this?
   % TODO: codetree doesn't exist. So there's that.
-  {ok, Codes, D} = flate_huffman:codetree(dynamic, {InitialBits, Data}),
+  {ok, Codes, D} = flate_huffman:codetree(dynamic, {InitialBits, BinTail}),
   inflate_symbols(Codes, D).
 
 inflate_symbols(Huffman, Data) -> inflate_symbols(Huffman, Data, [], 0).
@@ -246,6 +263,20 @@ fixed() ->
   %     280 - 287     8         11000000 through  11000111
   lists:concat([
     [{X, 8} || X <- lists:seq(0, 143)],
+    [{X, 9} || X <- lists:seq(144, 255)],
+    [{X, 7} || X <- lists:seq(256, 279)],
+    [{X, 8} || X <- lists:seq(280, 287)]
+  ]).
+
+dynamic() ->
+  % Literal value    Bits                 Codes
+  % -------------------------------------------------------
+  %       0 - 15     8         00110000 through  10111111
+  %           16     9        110010000 through 111111111
+  %           17     7          0000000 through   0010111
+  %     280 - 28     7         11000000 through  11000111
+  lists:concat([
+    [{X, 3} || X <- lists:seq(0, 15)],
     [{X, 9} || X <- lists:seq(144, 255)],
     [{X, 7} || X <- lists:seq(256, 279)],
     [{X, 8} || X <- lists:seq(280, 287)]
