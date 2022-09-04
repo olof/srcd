@@ -312,7 +312,25 @@ int_to_btype(N) -> {invalid_zlib_btype, N}.
 %% literal 'a      ! 10001001
 %% end             ! 0000000
 %%                 ! 000000
-?check_full_inflate(inflate_a_huffman_fixed_test_,
-                    <<75, 4, 0>>, <<"a">>).
+?check_full_inflate(inflate_a_huffman_fixed_test_, <<75, 4, 0>>, <<"a">>).
 
+%% $ perl -e '
+%%   print map { chr } 179, 183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0
+%% ' | github/madler/infgen/infgen -dd -r
+%% ! infgen 3.0 output
+%% !
+%% last            ! 1
+%% fixed           ! 01
+%% literal '?      ! 11110110
+%% literal '?      ! 11110110
+%% match 258 1     ! 00000 10100011
+%% match 258 1     ! 00000 10100011
+%% match 258 1     ! 00000 10100011
+%% match 258 1     ! 00000 10100011
+%% match 6 1       ! 00000 0010000
+%% end             ! 0000000
+%%                 ! 000000
+?check_full_inflate('inflate_?x1040_fixed_pigz_test_',
+                    <<179, 183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0>>,
+                    list_to_binary(lists:duplicate(1040, "?"))).
 -endif.

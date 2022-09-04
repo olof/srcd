@@ -80,4 +80,7 @@ finalize(Res, #zlib{input= <<Checksum:32, Tail/binary>>,
 ?check_full_inflate(pigz_aaa_inflation_test_,
                     <<2#01111000, 2#01011110, 115, 116, 116, 4, 0, 1, 137, 0, 196>>,
                     <<"AAA">>).
+?check_full_inflate('pigz_?x1040_inflation_test_',
+                    <<2#01111000, 2#01011110, 179, 183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0, 130, 0, 0, 0>>,
+                    list_to_binary(lists:duplicate(1040, "?"))).
 -endif.
