@@ -114,12 +114,41 @@ inflate_block(no_compression, _, Data) ->
   <<Decoded:Len/bytes, Tail/binary>> = Payload,
   {ok, Decoded, Tail, Len + 4};
 inflate_block(huffman_fixed, InitialBits, Data) ->
-  flate_huffman:decode(fixed(), {InitialBits, Data});
+  inflate_symbols(flate_huffman:init(fixed()), {InitialBits, Data});
 inflate_block(huffman_dyn, InitialBits, Data) ->
   % TODO: maybe i forgot to do byte accounting on this?
   % TODO: codetree doesn't exist. So there's that.
   {ok, Codes, D} = flate_huffman:codetree(dynamic, {InitialBits, Data}),
-  flate_huffman:decode(Codes, D).
+  inflate_symbols(Codes, D).
+
+inflate_symbols(Huffman, Data) -> inflate_symbols(Huffman, Data, [], 0).
+inflate_symbols(Huffman, Data, Symbols, Bits) ->
+  case flate_huffman:get_symbol(Huffman, Data) of
+    {ok, {Len, _, 256}, Tail} ->
+      {ok, list_to_binary(lists:reverse(Symbols)), Tail,
+	   (Bits + Len) div 8 + case Bits + Len rem 8 of 0 -> 0; _ -> 1 end};
+    {ok, {Len, _, Symbol}, Tail} when Symbol < 256 ->
+      inflate_symbols(Huffman, Tail, [Symbol | Symbols], Bits + Len);
+    {ok, {Len, Code, Symbol}, _} ->
+      {error, not_implemented, repetitions, {Len, Code, Symbol}}
+  end.
+
+-ifdef(TEST).
+
+inflate_symbols_test_() -> lists:concat([
+  [
+    ?_assertEqual(Expected,
+                  inflate_symbols(flate_huffman:init(flate:fixed()), In)) ||
+      {In, Expected} <- [
+        {{<<0:7>>, <<>>}, {ok, <<>>, end_of_stream, 1}},
+        {{<<>>, <<0>>},   {ok, <<>>, {<<0:1>>, <<>>}, 1}},
+        {<<0>>,           {ok, <<>>, {<<0:1>>, <<>>}, 1}}
+	% TODO missing tests for non-empty blobs
+      ]
+  ]
+]).
+
+-endif.
 
 fixed() ->
   % Literal value    Bits                 Codes

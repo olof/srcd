@@ -4,7 +4,7 @@
 -module(flate_huffman).
 % This module implements huffman coding and related functions.
 
--export([decode/2]).
+-export([init/1, get_symbol/2]).
 
 -define(SYMBOL_WIDTH, 2).
 
@@ -50,57 +50,26 @@ maxv([{_, V}|T], Max) when V > Max -> maxv(T, V);
 maxv([{_, _}|T], Max) -> maxv(T, Max);
 maxv([], Max) -> Max.
 
-decode(Lengths, Data) ->
-  decode(Lengths, setup(Lengths), Data, [], 0).
-decode(Lengths, Codes, Data, Symbols, Bits) ->
-  case decode_symbol(Codes, Data) of
-    {ok, {Len, _, 256}, Tail} ->
-      {ok, list_to_binary(lists:reverse(Symbols)), Tail,
-	   (Bits + Len) div 8 + case Bits + Len rem 8 of 0 -> 0; _ -> 1 end};
-    {ok, {Len, _, Symbol}, Tail} when Symbol < 256 ->
-      decode(Lengths, Codes, Tail, [Symbol | Symbols], Bits + Len);
-    {ok, {Len, Code, Symbol}, _} ->
-      {error, not_implemented, repetitions, {Len, Code, Symbol}}
-  end.
+get_symbol(Codes, Bin) when is_binary(Bin) ->
+  get_symbol(Codes, {<<>>, Bin});
+get_symbol(Codes, Bin) when is_bitstring(Bin) ->
+  get_symbol(Codes, {Bin, <<>>});
+get_symbol(Codes, {<<>>, <<C:1/binary, Tail/binary>>}) ->
+  get_symbol(Codes, {C, Tail});
+get_symbol(Codes, {C, Tail}) when is_integer(C) ->
+  get_symbol(Codes, {<<C:8/integer>>, Tail});
+get_symbol(Codes, {C, Tail}) ->
+  get_symbol(Codes, {0, 0}, {C, Tail}).
 
--ifdef(TEST).
-
-% The semantics of decode only works for code trees that contain the symbol
-% 256... This is perhaps a sign of bad api design. How do I in the general
-% case determine if a huffman stream is complete? (derp, use deflate!)
-% TODO: need to add tests for dynamic codes
-decode_test_() -> lists:concat([
-  [
-    ?_assertEqual(Expected, decode(flate:fixed(), In)) || {In, Expected} <- [
-      {{<<0:7>>, <<>>}, {ok, <<>>, end_of_stream, 1}},
-      {{<<>>, <<0>>},   {ok, <<>>, {<<0:1>>, <<>>}, 1}},
-      {<<0>>,           {ok, <<>>, {<<0:1>>, <<>>}, 1}}
-    ]
-  ]
-]).
-
--endif.
-
-decode_symbol(Codes, Bin) when is_binary(Bin) ->
-  decode_symbol(Codes, {<<>>, Bin});
-decode_symbol(Codes, Bin) when is_bitstring(Bin) ->
-  decode_symbol(Codes, {Bin, <<>>});
-decode_symbol(Codes, {<<>>, <<C:1/binary, Tail/binary>>}) ->
-  decode_symbol(Codes, {C, Tail});
-decode_symbol(Codes, {C, Tail}) when is_integer(C) ->
-  decode_symbol(Codes, {<<C:8/integer>>, Tail});
-decode_symbol(Codes, {C, Tail}) ->
-  decode_symbol(Codes, {0, 0}, {C, Tail}).
-
-decode_symbol(_, {Len, _}, _) when Len > 15 ->
+get_symbol(_, {Len, _}, _) when Len > 15 ->
   {error, invalid_code};
-decode_symbol(Codes, {Len, Cand}, {<<H:1, T/bits>>, Data}) ->
+get_symbol(Codes, {Len, Cand}, {<<H:1, T/bits>>, Data}) ->
   NewLen = Len + 1,
   NewCode = Cand bsl 1 + H,
   NewData = {T, Data},
   case lists:keyfind({NewLen, NewCode}, 2, Codes) of
     false ->
-      decode_symbol(Codes, {NewLen, NewCode}, NewData);
+      get_symbol(Codes, {NewLen, NewCode}, NewData);
     {Val, {NewLen, NewCode}} ->
       case NewData of
         {<<>>, <<>>} -> {ok, {NewLen, NewCode, Val}, end_of_stream};
@@ -108,9 +77,9 @@ decode_symbol(Codes, {Len, Cand}, {<<H:1, T/bits>>, Data}) ->
 	{_, _} = Tail -> {ok, {NewLen, NewCode, Val}, Tail}
       end
   end;
-decode_symbol(Codes, Cand, {<<>>, <<Byte:1/binary, Data/binary>>}) ->
-  decode_symbol(Codes, Cand, {flate_utils:reverse_byte(Byte), Data});
-decode_symbol(_, _, {<<>>, <<>>}) ->
+get_symbol(Codes, Cand, {<<>>, <<Byte:1/binary, Data/binary>>}) ->
+  get_symbol(Codes, Cand, {flate_utils:reverse_byte(Byte), Data});
+get_symbol(_, _, {<<>>, <<>>}) ->
   {error, not_enough_data}.
 
 -ifdef(TEST).
@@ -118,7 +87,7 @@ decode_symbol(_, _, {<<>>, <<>>}) ->
 decode_test_symbols_test_() -> [
   ?_assertEqual(
     {ok, SymbolMatch, Tail},
-    decode_symbol(Codes, Encoded)
+    get_symbol(Codes, Encoded)
   ) || {Codes, Encoded, SymbolMatch, Tail} <- [
     {?TEST_ABCD_CODES, <<2:2>>, {2, 2, a}, end_of_stream},
     {?TEST_ABCDEFGH_CODES, <<2:3>>, {3, 2, a}, end_of_stream}
@@ -129,36 +98,36 @@ decode_abcd_symbols_test_() ->
   [Code1 | _] = Codes = ?TEST_ABCD_CODES,
   [
     ?_assertEqual({ok, {Len, Code, Val}, end_of_stream},
-                  decode_symbol(Codes, <<Code:Len>>)) ||
+                  get_symbol(Codes, <<Code:Len>>)) ||
         {Val, {Len, Code}} <- [Code1]
   ].
 
 decode_abcdefgh_symbols_test_() -> [
   ?_assertEqual(
     {ok, {Len, Code, Val}, end_of_stream},
-    decode_symbol(?TEST_ABCDEFGH_CODES, <<Code:Len>>)) ||
+    get_symbol(?TEST_ABCDEFGH_CODES, <<Code:Len>>)) ||
       {Val, {Len, Code}} <- ?TEST_ABCDEFGH_CODES
 ].
 
 decode_fixed_symbols_test() ->
-  % This assumes a working setup(), otherwise we won't know what
+  % This assumes a working init(), otherwise we won't know what
   % we are looking up codes in. Also: make it a static test, not
   % a generator, because we don't want each symbol to count as a
   % specific test (or else about 90% of our test case count would
   % be this, already described as not so useful, test. It does
   % hold some value, since we get to see that it works nicely even
   % for real world code trees.
-  Codes = setup(flate:fixed()),
+  Codes = init(flate:fixed()),
   [
     ?assertEqual(
       {ok, {Len, Code, Val}, end_of_stream},
-      decode_symbol(Codes, <<Code:Len>>)) ||
+      get_symbol(Codes, <<Code:Len>>)) ||
       {Val, {Len, Code}} <- Codes
   ].
 
 -endif.
 
-setup(Lengths) ->
+init(Lengths) ->
   Counts = counts(Lengths),
   ok = check(Counts),
   {ok, Offsets} = offsets(lists:seq(1, maxv(Lengths)), Counts),
@@ -167,7 +136,7 @@ setup(Lengths) ->
 -ifdef(TEST).
 
 setup_test_() -> [
-  ?_assertEqual(?TEST_ABCDEFGH_CODES, setup(?TEST_ABCDEFGH_INPUT))
+  ?_assertEqual(?TEST_ABCDEFGH_CODES, init(?TEST_ABCDEFGH_INPUT))
 ].
 
 -endif.
