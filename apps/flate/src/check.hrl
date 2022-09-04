@@ -1,8 +1,9 @@
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
--define(check_full_inflate(Name, Input, Output, Tail),
+-define(check_full_inflate(Name, Input, OutputIn, Tail),
 Name() ->
+  Output = OutputIn,
   case catch in(Input) of
     {ok, Result, Ctx} ->
       Read = size(Input) - case Tail of
