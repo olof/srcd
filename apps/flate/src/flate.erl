@@ -196,7 +196,11 @@ clone_output_test_() -> [
   ?_assertEqual("abcd", clone_output("abcd", 4, 4)),
   ?_assertEqual("abcda", clone_output("abcd", 4, 5)),
   ?_assertEqual("abcdabcd", clone_output("abcd", 4, 8)),
-  ?_assertEqual("abcdabcda", clone_output("abcd", 4, 9))
+  ?_assertEqual("abcdabcda", clone_output("abcd", 4, 9)),
+
+  ?_assertEqual(lists:duplicate(258, $?), clone_output("?", 1, 258)),
+  ?_assertEqual(lists:flatten(lists:duplicate(129, "c?")),
+                clone_output("abc?", 2, 258))
 ].
 
 -endif.
