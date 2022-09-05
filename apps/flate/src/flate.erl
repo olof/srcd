@@ -169,6 +169,8 @@ inflate_symbols_test_() -> lists:concat([
 
 -endif.
 
+clone_output(Symbols, Dist, _) when Dist > length(Symbols) ->
+  {error, distance_too_far_back, Dist};
 clone_output(Symbols, Dist, Length) ->
   {_, Buf} = lists:split(length(Symbols)-Dist, Symbols),
   clone_output(Buf, Length, [], []).
@@ -177,8 +179,6 @@ clone_output(_, 0, Cur, Acc) ->
 clone_output([], Len, Cur, Acc) ->
   Buf = lists:concat(lists:reverse([lists:reverse(Cur)|Acc])),
   clone_output(Buf, Len, [], [Buf]);
-clone_output([], N, _, _) ->
-  {error, distance_too_far_back, N};
 clone_output([S|Buf], Length, Cur, Acc) ->
   clone_output(Buf, Length-1, [S|Cur], Acc).
 
