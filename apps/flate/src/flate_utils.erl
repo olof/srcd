@@ -1,11 +1,15 @@
 -module(flate_utils).
--export([read_bits/2, read_bits/3, reverse_int/2, reverse_byte/1, reverse_bits/1]).
+-export([read_bits/2, read_bits/3, read_hook/2, reverse_int/2, reverse_byte/1, reverse_bits/1]).
 
 -include_lib("kernel/include/logger.hrl").
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
+
+read_hook(Opts, Data) ->
+  Hook = proplists:get_value(read_hook, Opts, fun (_) -> ok end),
+  Hook(Data).
 
 read_bits(Data, Count) ->
   read_bits(Data, Count, []).
@@ -25,14 +29,25 @@ read_bits(Data, Count, Opts) ->
       {Bits, {BitsTail, Bin}};
 
     {Count, {Bits, Bin}} when bit_size(Bits) < Count ->
-      Buflen = bit_size(Bits),   % the buffel in the room
-      <<Byte:8/bits, Tail/binary>> = Bin,
-      Rev = case proplists:get_bool(reverse_input_byte_order, Opts) of
-        true -> reverse_byte(Byte);
-        false -> Byte
-      end,
-      read_bits({<<Bits:Buflen/bits, Rev:8/bits>>, Tail}, Count, Opts)
+      read_bits(fill_bits(Bits, Bin, Opts), Count, Opts)
   end.
+
+fill_bits(Bits, Bytes, Opts) when is_binary(Bytes) ->
+   <<Byte:8/bits, Tail/binary>> = Bytes,
+   read_hook(Opts, Byte),
+   Rev = case proplists:get_bool(reverse_input_byte_order, Opts) of
+     true -> reverse_byte(Byte);
+     false -> Byte
+   end,
+   {<<Bits:(bit_size(Bits))/bits, Rev:8/bits>>, Tail};
+fill_bits(Bits, Stream, Opts) when is_port(Stream) ->
+  [Byte] = io:get_chars(Stream, "", 1),
+  read_hook(Opts, <<Byte:8>>),
+  Rev = case proplists:get_bool(reverse_input_byte_order, Opts) of
+    true -> reverse_byte(Byte);
+    false -> Byte
+  end,
+  {<<Bits:(bit_size(Bits))/bits, Rev:8>>, Stream}.
 
 -ifdef(TEST).
 

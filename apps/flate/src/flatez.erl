@@ -5,7 +5,7 @@
 % This module tries to implement RFC 1950, to be able to support
 % inflating compressed objects.
 
--export([in/1, in/2, de/1, tail/1, stats/1]).
+-export([in/1, in/2, in/3, de/1, tail/1, stats/1]).
 
 %%%% Inflating a compressed blob:
 % {more, Context2} = flate:in(Part1),
@@ -35,10 +35,12 @@
 -include("record.hrl").
 -include("check.hrl").
 
-in(Data) ->
-  <<HDR:2/binary, Tail/binary>> = Data,
-  <<HDRVal:16>> = HDR,
+in(Data)       -> in(Data, []).
+in(Data, Opts) ->
+  ReadHook = proplists:get_value(read_hook, Opts, fun (_) -> ok end),
+  {HDRVal, Tail} = flate_utils:read_bits(Data, 16, [{read_hook, ReadHook}]),
   0 = HDRVal rem 31,
+  HDR = <<HDRVal:16>>,
 
   % deflate is 8, and only thing we support.
   <<CMF:1/binary, FLG:1/binary>> = HDR,
@@ -50,11 +52,11 @@ in(Data) ->
   _Win = crypto:mod_pow(2, CINFO + 8, 16#7fff),
   % TODO: need to pass Win to flate:in
   %io:format(standard_error, "zlib tail: ~.2B~n", [Tail]),
-  case flate:in(Tail) of
+  case flate:in(Tail, Opts) of
     {more, Ctx} -> {more, Ctx};
     {ok, Res, Ctx} -> finalize(Res, Ctx)
   end.
-in(Ctx, Data) -> flate:in(Ctx, Data).
+in(Ctx, Data, Opts) -> flate:in(Ctx, Data, Opts).
 de(Data) -> flate:de(Data).
 tail(Ctx) -> flate:tail(Ctx).
 stats(Ctx) -> flate:stats(Ctx).

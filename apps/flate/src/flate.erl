@@ -42,30 +42,34 @@
 -include("check.hrl").
 
 -define(op(Name),
-Name(#zlib{op=Name} = State) -> route(Name, State);
-Name(#zlib{op=Op}) -> {badarg, op, Op};
-Name(Data) -> Name(#zlib{op=Name, input=Data})).
+Name(#zlib{op=Name} = State, Opts) -> route(Name, State, Opts);
+Name(#zlib{op=Op}, Opts) -> {badarg, op, Op};
+Name(Data, Opts) -> Name(#zlib{op=Name, input=Data}, Opts)).
 
+de(Data) -> de(Data, []).
 ?op(de).
-in(State = #zlib{input=De}, Data) when is_list(De) ->
-  deflate(State#zlib{input=lists:reverse([Data | De])});
-in(State = #zlib{input=De}, Data) ->
-  deflate(State#zlib{input=[De, Data]}).
+
+in(State = #zlib{input=De}, Data, Opts) when is_list(De) ->
+  deflate(State#zlib{input=lists:reverse([Data | De])}, Opts);
+in(State = #zlib{input=De}, Data, Opts) ->
+  deflate(State#zlib{input=[De, Data]}, Opts).
+in(Data) -> in(Data, []).
 ?op(in).
 
 % route() is a hack, to workaround a limitation with erlang preprocessor; i
 % couldn't call a function called Name?MODULE when Name was a macro parameter.
 % This saddened me.
-route(in, State) -> inflate(State);
-route(de, State) -> deflate(State).
+route(in, State, Opts) -> inflate(State, Opts);
+route(de, State, Opts) -> deflate(State, Opts).
 
-inflate(#zlib{input= <<>>, state=data} = Ctx) -> {more, Ctx};
-inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} = Ctx) ->
+inflate(#zlib{input= <<>>, state=data} = Ctx, Opts) -> {more, Ctx};
+inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} = Ctx, Opts) ->
   % parse code tree, parse compressed bytes
-  <<Btail:5/bits, Btype:2, Bfinal:1, Tail/binary>> = Enc,
-  {ok, This, NewTail, ReadLen} = inflate_block(int_to_btype(Btype),
-                                               flate_utils:reverse_byte(Btail),
-                                               Tail),
+  %<<Btail:5/bits, Btype:2, Bfinal:1, Tail/binary>> = Enc,
+  {Bfinal, Tail2} = read_bits(Enc, 1, [reverse_input_byte_order]),
+  {BtypeR, Tail1} = read_bits(Tail2, 2, [reverse_input_byte_order]),
+  Btype = flate_utils:reverse_int(BtypeR, 2),
+  {ok, This, NewTail, ReadLen} = inflate_block(int_to_btype(Btype), Tail1, Opts),
 
   NewCtx = Ctx#zlib{
     input=NewTail,
@@ -78,42 +82,54 @@ inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} 
   },
 
   case Bfinal of
-    0 -> inflate(NewCtx);
-    1 -> finalize(NewCtx)
+    0 -> inflate(NewCtx, Opts);
+    1 -> finalize(NewCtx, Opts)
   end.
 
-deflate(#zlib{input=Input} = Ctx) ->
+deflate(#zlib{input=Input} = Ctx, Opts) ->
   Z = zlib:open(),
   ok = zlib:'deflateInit'(Z, default),
   [Output] = zlib:deflate(Z, Input, finish),
   ok = zlib:'deflateEnd'(Z),
   {ok, Output,
-       finalize(Ctx#zlib{read_count=size(Input), write_count=size(Output)})}.
+       finalize(Ctx#zlib{read_count=size(Input), write_count=size(Output)}, Opts)}.
 
 stats(#zlib{read_count=R, write_count=W}) -> {ok, [{read, R}, {written, W}]}.
 
 tail(#zlib{op=in, input=Tail}) -> Tail;
 tail(#zlib{op=de, output=Tail}) -> Tail.  % This shouldn't currently happen
 
-finalize(#zlib{input={_, Data}} = Ctx) ->
+finalize(#zlib{input={_, Data}} = Ctx, Opts) ->
   % TODO If we have an incomplete byte, we just throw it away now. That
   %      may, or may not, be an ok thing to do.
-  finalize(Ctx#zlib{input=Data});
-finalize(#zlib{output=Out} = Ctx) ->
+  finalize(Ctx#zlib{input=Data}, Opts);
+finalize(#zlib{output=Out} = Ctx, Opts) ->
   {ok, iolist_to_binary(lists:reverse(Out)),
    Ctx#zlib{state=finalized, output=undefined}}.
 
-inflate_block(no_compression, _, Data) ->
+inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) ->
   % NOTE: Uncompressed blocks, RFC 1951 section 3.2.1:
   % > Any bits of input up to the next byte boundary are ignored.
   <<Len:16, Nlen:16, Payload/binary>> = Data,
+  read_hook(Opts, <<Len:16, Nlen:16>>),
   % > LEN is the number of data bytes in the block.  NLEN is the
   % > one's complement of LEN.
   Nlen = 16#FFFF - Len,
   <<Decoded:Len/bytes, Tail/binary>> = Payload,
+  read_hook(Opts, Decoded),
   {ok, Decoded, Tail, Len + 4};
-inflate_block(huffman_fixed, InitialBits, Data) ->
-  inflate_symbols(flate_huffman:init(fixed()), {InitialBits, Data});
+inflate_block(no_compression, {_, Stream}, Opts) when is_port(Stream) ->
+  <<Len:16>> = list_to_binary(io:get_chars(Stream, "", 2)),
+  read_hook(Opts, <<Len:16>>),
+  <<Nlen:16>> = list_to_binary(io:get_chars(Stream, "", 2)),
+  read_hook(Opts, <<Nlen:16>>),
+  Nlen = 16#FFFF - Len,
+  Chars = io:get_chars(Stream, "", Len),
+  Decoded = list_to_binary(Chars),
+  read_hook(Opts, Decoded),
+  {ok, Decoded, {<<>>, Stream}, Len + 4};
+inflate_block(huffman_fixed, Data, Opts) ->
+  inflate_symbols(flate_huffman:init(fixed()), Data, Opts);
 inflate_block(huffman_dyn, _, _) ->
   {error, huffman_dyn_not_implemented}.
 %inflate_block(huffman_dyn, HLIT, <<HDIST:5, HCLEN:4, Data/binary>>) ->
@@ -139,19 +155,19 @@ inflate_block(huffman_dyn, _, _) ->
 %  {ok, Codes, D} = flate_huffman:codetree(dynamic, {InitialBits, BinTail}),
 %  inflate_symbols(Codes, D).
 
-inflate_symbols(Huffman, Data) -> inflate_symbols(Huffman, Data, [], 0).
-inflate_symbols(Huffman, Data, Symbols, BitCount) ->
+inflate_symbols(Huffman, Data, Opts) -> inflate_symbols(Huffman, Data, Opts, [], 0).
+inflate_symbols(Huffman, Data, Opts, Symbols, BitCount) ->
   case flate_huffman:get_symbol(Huffman, Data) of
     {ok, {Len, _, 256}, Tail} ->
       {ok, list_to_binary(lists:reverse(Symbols)), Tail,
 	   (BitCount + Len) div 8 + case BitCount + Len rem 8 of 0 -> 0; _ -> 1 end};
     {ok, {Len, _Code, Symbol}, Tail} when Symbol < 256 ->
-      inflate_symbols(Huffman, Tail, [Symbol | Symbols], BitCount + Len);
+      inflate_symbols(Huffman, Tail, Opts, [Symbol | Symbols], BitCount + Len);
     {ok, {Len, _Code, Code}, Tail1} ->
       {Length, Dist, Tail, Read} = decode_distance_pair(Code, Tail1),
       case clone_output(lists:flatten(Symbols), Dist, Length) of
         {error, Reason} -> error({error, Reason});
-        Output -> inflate_symbols(Huffman, Tail, [Output | Symbols],
+        Output -> inflate_symbols(Huffman, Tail, Opts, [Output | Symbols],
                                   BitCount + Len + Read)
       end
   end.
@@ -161,7 +177,7 @@ inflate_symbols(Huffman, Data, Symbols, BitCount) ->
 inflate_symbols_test_() -> lists:concat([
   [
     ?_assertEqual(Expected,
-                  inflate_symbols(flate_huffman:init(flate:fixed()), In)) ||
+                  inflate_symbols(flate_huffman:init(flate:fixed()), In, [])) ||
       {In, Expected} <- [
         {{<<0:7>>, <<>>}, {ok, <<>>, {<<>>, <<>>}, 1}},
         {{<<>>, <<0>>},   {ok, <<>>, {<<0:1>>, <<>>}, 1}},
@@ -456,3 +472,4 @@ inflate_steps_test_() -> [fun () -> test_inflate_steps() end].
 
 read_bits(Data, Count) -> flate_utils:read_bits(Data, Count).
 read_bits(Data, Count, Opts) -> flate_utils:read_bits(Data, Count, Opts).
+read_hook(Opts, Data) -> flate_utils:read_hook(Opts, Data).
