@@ -62,7 +62,6 @@ route(de, State) -> deflate(State).
 inflate(#zlib{input= <<>>, state=data} = Ctx) -> {more, Ctx};
 inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} = Ctx) ->
   % parse code tree, parse compressed bytes
-  <<Head:8, _/binary>> = Enc,
   <<Btail:5/bits, Btype:2, Bfinal:1, Tail/binary>> = Enc,
   {ok, This, NewTail, ReadLen} = inflate_block(int_to_btype(Btype),
                                                flate_utils:reverse_byte(Btail),
@@ -139,17 +138,24 @@ inflate_block(huffman_dyn, HLIT, <<HDIST:5, HCLEN:4, Data/binary>>) ->
   inflate_symbols(Codes, D).
 
 inflate_symbols(Huffman, Data) -> inflate_symbols(Huffman, Data, [], 0).
-inflate_symbols(Huffman, Data, Symbols, Bits) ->
+inflate_symbols(Huffman, Data, Symbols, BitCount) ->
+  ?LOG_NOTICE("Collected symbols: ~p", [Symbols]),
   case flate_huffman:get_symbol(Huffman, Data) of
     {ok, {Len, _, 256}, Tail} ->
+      ?LOG_NOTICE("Collecting stops here"),
       {ok, list_to_binary(lists:reverse(Symbols)), Tail,
-	   (Bits + Len) div 8 + case Bits + Len rem 8 of 0 -> 0; _ -> 1 end};
-    {ok, {Len, _, Symbol}, Tail} when Symbol < 256 ->
-      inflate_symbols(Huffman, Tail, [Symbol | Symbols], Bits + Len);
-    {ok, {_, _, Code}, Tail1} ->
+	   (BitCount + Len) div 8 + case BitCount + Len rem 8 of 0 -> 0; _ -> 1 end};
+    {ok, {Len, Code, Symbol}, Tail} when Symbol < 256 ->
+      ?LOG_NOTICE("Collecting for literal: ~p -> ~p -> ~p~nHuffman: ~p", [Data, Code, Symbol, Huffman]),
+      inflate_symbols(Huffman, Tail, [Symbol | Symbols], BitCount + Len);
+    {ok, {Len, _, Code}, Tail1} ->
+      ?LOG_NOTICE("Collecting for clone_output"),
       {Length, Dist, Tail, Read} = decode_distance_pair(Huffman, Code, Tail1),
-      inflate_symbols(Huffman, Tail, [clone_output(lists:flatten(Symbols), Dist, Length) | Symbols],
-                      Bits + Read)
+      case clone_output(lists:flatten(Symbols), Dist, Length) of
+        {error, Reason} -> error({error, Reason});
+        Output -> inflate_symbols(Huffman, Tail, [Output | Symbols],
+                                  BitCount + Len + Read)
+      end
   end.
 
 -ifdef(TEST).
@@ -159,7 +165,7 @@ inflate_symbols_test_() -> lists:concat([
     ?_assertEqual(Expected,
                   inflate_symbols(flate_huffman:init(flate:fixed()), In)) ||
       {In, Expected} <- [
-        {{<<0:7>>, <<>>}, {ok, <<>>, end_of_stream, 1}},
+        {{<<0:7>>, <<>>}, {ok, <<>>, {<<>>, <<>>}, 1}},
         {{<<>>, <<0>>},   {ok, <<>>, {<<0:1>>, <<>>}, 1}},
         {<<0>>,           {ok, <<>>, {<<0:1>>, <<>>}, 1}}
 	% TODO missing tests for non-empty blobs
@@ -170,10 +176,12 @@ inflate_symbols_test_() -> lists:concat([
 -endif.
 
 clone_output(Symbols, Dist, _) when Dist > length(Symbols) ->
-  {error, distance_too_far_back, Dist};
+  {error, {deflate_distance_too_far_back, Dist}};
 clone_output(Symbols, Dist, Length) ->
+  %?LOG_NOTICE("clone_output: len=~p dist=~p, outlen: ~p", [Length, Dist, length(Symbols)]),
   {_, Buf} = lists:split(length(Symbols)-Dist, Symbols),
   clone_output(Buf, Length, [], []).
+
 clone_output(_, 0, Cur, Acc) ->
   lists:concat(lists:reverse([lists:reverse(Cur)|Acc]));
 clone_output([], Len, Cur, Acc) ->
@@ -206,65 +214,37 @@ clone_output_test_() -> [
 -endif.
 
 decode_distance_pair(Huffman, Code, Data) ->
-  %% We got our length, now we only need our distance:
-  % we should be able to construct a code table for the distances,
-  % and pass it instead of Huffman as the first parameter:
-  %{ok, {Read, _, Sym}, Tail} = flate_huffman:get_symbol(Huffman, Data),
-
   {Length, LengthTail, BitsRead1} = decode_distance_len(Code, Data),
-  {Distance, DistanceTail, BitsRead2} = decode_distance(Code, LengthTail),
-
-  % TODO: Don't forget to do accounting on ExtraBits!
+  {Distance, DistanceTail, BitsRead2} = decode_distance(LengthTail),
+  ?LOG_NOTICE("Got input data = ~p~nGot length: ~p~nGot distance: ~p", [Data, Length, Distance]),
   {Length, Distance, DistanceTail, BitsRead1 + BitsRead2}.
 
 decode_distance_len(Code, Data) ->
   {ExtraBits, Len} = distance_code_length(Code),
   {Extra, Tail} = read_bits(Data, ExtraBits),
-  {(Len bsl ExtraBits) + Extra, Tail, ExtraBits}.
+  ?LOG_NOTICE("decode_distance_len: code=~p, len=~p, xbits=~p  bits: ~p", [Code, Len, ExtraBits, Extra]),
+  %{((Len bsl ExtraBits) + Extra, Tail, ExtraBits}.
+  {Len + flate_utils:reverse_int(Extra, ExtraBits), Tail, ExtraBits}.
 
-decode_distance(Code, Data) ->
-  {DistanceCode, Extras} = read_bits(Data, 5),
-  {DistanceCode, ExtraBits} = distance_extra_bits(DistanceCode),
+decode_distance(Data) ->
+  {RevCode, Extras} = read_bits(Data, 5, [reverse_input_byte_order]),
+  Code = flate_utils:reverse_int(RevCode, 5),
+  Base = distance_base(Code),
+  ?LOG_NOTICE("DistanceCode: ~p  /  ~p (base: ~p)~nInput: ~p", [RevCode, Code, Base, Data]),
+  {Code, ExtraBits} = distance_extra_bits(Code),
   {Extra, Tail} = read_bits(Extras, ExtraBits),
-  {(DistanceCode bsl ExtraBits) + Extra + 1, Tail, 5 + ExtraBits}.
+  {Base + Extra + 1, Tail, 5 + ExtraBits}.
 
-read_bits(Data, Count) ->
-  case {Count, Data} of
-    {0, _} -> {0, Data};
-
-    {Count, Data} when is_binary(Data) andalso Count rem 8 == 0 ->
-      <<Bits:Count, Tail/binary>> = Data,
-      {Bits, Tail};
-
-    {Count, Data} when is_binary(Data) andalso Count rem 8 > 0 ->
-      Pad = 8 - Count rem 8,
-      <<Bits:Count, TailBits:Pad/bits, Tail/binary>> = Data,
-      {Bits, {TailBits, Tail}};
-
-    {Count, {Bits, Bin}} when bit_size(Bits) == Count ->
-      <<Int:Count>> = Bits,
-      {Int, Bin};
-
-    {Count, {Bits1, Bin}} when bit_size(Bits1) > Count ->
-      <<Bits:Count, BitsTail/bits>> = Bits1,
-      {Bits, {BitsTail, Bin}};
-
-    {Count, {Bits1, Bin}} when bit_size(Bits1) < Count ->
-      ?LOG_NOTICE("Count: ~p, Bits: ~p, Bin: ~p", [Count, Bits1, Bin]),
-      PadSize = 8 - Count rem 8,
-      <<Byte:8/bits, Tail/binary>> = Bin,
-      <<Bits:Count, BitsTail/bits>> = <<Bits1/bits, Byte/bits>>,
-      {Bits, {BitsTail, Tail}}
-  end.
-
+% {Extra, Tail} = read_bits(Extras, ExtraBits),
+% ?LOG_NOTICE("decode_distance: code=~p, xbits=~p bits: ~p", [DistanceCode, ExtraBits, Extras]),
 
 fixed() ->
   % Literal value    Bits                 Codes
   % -------------------------------------------------------
-  %       0 - 143     8         00110000 through  10111111
-  %     144 - 255     9        110010000 through 111111111
-  %     256 - 279     7          0000000 through   0010111
-  %     280 - 287     8         11000000 through  11000111
+  %       0 - 143     8         00110000 through  10111111   (48-191)
+  %     144 - 255     9        110010000 through 111111111  (400-511)
+  %     256 - 279     7          0000000 through   0010111    (0- 23)
+  %     280 - 287     8         11000000 through  11000111  (192-199)
   lists:concat([
     [{X, 8} || X <- lists:seq(0, 143)],
     [{X, 9} || X <- lists:seq(144, 255)],
@@ -285,6 +265,79 @@ dynamic() ->
     [{X, 7} || X <- lists:seq(256, 279)],
     [{X, 8} || X <- lists:seq(280, 287)]
   ]).
+
+-define(distance_code(Lower, Upper, Extra),
+        distance_code(N) when N >= Lower andalso N =< Upper div 4 ->
+	  {N, {5, Extra * 2 + 3}};
+        distance_code(N) when N > Upper div 4 andalso (N =< Upper) ->
+	  {N, {5, Extra * 2 + 3}}).
+
+distance_codes() -> [distance_code(N) || N <- lists:seq(1, 32768) ].
+distance_code(1) -> {1, {5, 0}};
+distance_code(2) -> {2, {5, 1}};
+distance_code(3) -> {3, {5, 2}};
+distance_code(4) -> {4, {5, 3}};
+?distance_code(      5,     8,   1);
+?distance_code(      9,    16,   2);
+?distance_code(     17,    32,   3);
+?distance_code(     33,    64,   4);
+?distance_code(     65,   128,   5);
+?distance_code(    129,   256,   6);
+?distance_code(    257,   512,   7);
+?distance_code(    513,  1024,   8);
+?distance_code(   1025,  2048,   9);
+?distance_code(   2049,  4096,  10);
+?distance_code(   4097,  8192,  11);
+?distance_code(   8193, 16384,  12);
+?distance_code(  16385, 32768,  13).
+
+distance_base() -> [
+  { 0,     1},
+  { 1,     2},
+  { 2,     3},
+  { 3,     4},
+  { 4,     5},
+  { 5,     7},
+  { 6,     9},
+  { 7,    13},
+  { 8,    17},
+  { 9,    25},
+  {10,    33},
+  {11,    49},
+  {12,    65},
+  {13,    97},
+  {14,   129},
+  {15,   193},
+  {16,   257},
+  {17,   385},
+  {18,   513},
+  {19,   769},
+  {20,  1025},
+  {21,  1537},
+  {22,  2049},
+  {23,  3073},
+  {24,  4097},
+  {25,  6145},
+  {26,  8193},
+  {27, 12289},
+  {28, 16385},
+  {29, 24577}
+].
+distance_base(Code) ->
+  ?LOG_NOTICE("Distance_base ~p", [Code]),
+  {Code, Value} = lists:keyfind(Code, 1, distance_base()),
+  Value.
+
+distance_length_base() -> [
+  { 0,   3}, { 1,   4}, { 2,   5}, { 3,   6}, { 4,   7}, { 5,   8}, { 6,   9},
+  { 7,  10}, { 8,  11}, { 9,  13}, {10,  15}, {11,  17}, {12,  19}, {13,  23},
+  {14,  27}, {15,  31}, {16,  35}, {17,  43}, {18,  51}, {19,  59}, {20,  67},
+  {21,  83}, {22,  99}, {23, 115}, {24, 131}, {25, 163}, {26, 195}, {27, 227},
+  {28, 258}
+].
+distance_length_base(Code) ->
+  {Code, Value} = lists:keyfind(Code, 1, distance_length_base()),
+  Value.
 
 distance_extra_bits() ->
   % Code table for distance alphabet from RFC 1951 section 3.2.5
@@ -308,7 +361,7 @@ distance_extra_bits(Code) ->
   lists:keyfind(Code, 1, distance_extra_bits()).
 
 distance_code_length(Code) ->
-  case Code of
+  {L, _} = case Code of
     257 -> {0,   3}; 258 -> {0,   4}; 259 -> {0,   5}; 260 -> {0,   6};
     261 -> {0,   7}; 262 -> {0,   8}; 263 -> {0,   9}; 264 -> {0,  10};
     265 -> {1,  11}; 266 -> {1,  13}; 267 -> {1,  15}; 268 -> {1,  17};
@@ -318,6 +371,7 @@ distance_code_length(Code) ->
     281 -> {5, 131}; 282 -> {5, 163}; 283 -> {5, 195}; 284 -> {5, 227};
     285 -> {0, 258}
   end.
+  %{L, Code}.
 
 int_to_btype(0) -> no_compression;
 int_to_btype(1) -> huffman_fixed;
@@ -352,20 +406,104 @@ int_to_btype(N) -> {invalid_zlib_btype, N}.
 %% $ perl -e '
 %%   print map { chr } 179, 183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0
 %% ' | github/madler/infgen/infgen -dd -r
-%% ! infgen 3.0 output
-%% !
-%% last            ! 1
-%% fixed           ! 01
-%% literal '?      ! 11110110
-%% literal '?      ! 11110110
-%% match 258 1     ! 00000 10100011
-%% match 258 1     ! 00000 10100011
-%% match 258 1     ! 00000 10100011
-%% match 258 1     ! 00000 10100011
-%% match 6 1       ! 00000 0010000
-%% end             ! 0000000
-%%                 ! 000000
+%% last                    ! 1                    1:1
+%% fixed                   ! 01                   1:2
+%% literal '?              ! 11110110           246:8
+%% literal '?              ! 11110110           246:8
+%% match 258 1             ! 00000 0:5 10100011 163:8
+%% match 258 1             ! 00000 0:5 10100011 163:8
+%% match 258 1             ! 00000 0:5 10100011 163:8
+%% match 258 1             ! 00000 0:5 10100011 163:8
+%% match 6 1               ! 00000 0:5 0010000   16:7
+%% end                     ! 0000000              0:7
+%% (padding to whole byte) ! 000000               0:6
+%%                                                ---
+%%                                                 96 (12 bytes)
 ?check_full_inflate('inflate_?x1040_fixed_pigz_test_',
-                    <<179, 183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0>>,
+		    <<179, 183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0>>,
                     list_to_binary(lists:duplicate(1040, "?"))).
+
+
+test_inflate_steps() ->
+  In = <<179, 183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0>>,
+  Expect = list_to_binary(lists:duplicate(1040, "?")),
+  Fixed = flate_huffman:init(fixed()),
+
+  % parse code tree, parse compressed bytes
+  <<Btail:5/bits, Btype:2, Bfinal:1, Tail0/binary>> = In,
+
+  ?assertEqual(1, Bfinal),
+  ?assertEqual(huffman_fixed, int_to_btype(Btype)),
+  ?assertEqual(<<22:5>>, Btail),
+  ?assertEqual(<<13:5>>, flate_utils:reverse_byte(Btail)),
+  ?assertEqual(<<183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0>>, Tail0),
+
+  %{ok, CodeMatch1, Tail1} = flate_huffman:get_symbol(Fixed, {flate_utils:reverse_bits(Btail), Tail0}),
+  {ok, CodeMatch1, Tail1} = flate_huffman:get_symbol(Fixed, {<<13:5>>, Tail0}),
+  ?assertEqual({8, 246, $?}, CodeMatch1),
+  ?assertEqual({<<13:5>>, <<31, 5, 163, 96, 20, 140, 2, 8, 0, 0>>}, Tail1),
+
+  {ok, {8, 246, $?}, Tail2} = flate_huffman:get_symbol(Fixed, Tail1),
+
+  % ??? 24, i got it to 31
+  ?assertEqual({<<24:5>>, <<5, 163, 96, 20, 140, 2, 8, 0, 0>>}, Tail2),
+
+  MaxSubstr = lists:duplicate(258, $?),
+  ShortSubstr = lists:duplicate(6, $?),
+
+  % Repeat 1
+  {ok, {8, 163, 285}, Tail3} = flate_huffman:get_symbol(Fixed, Tail2),
+  ?assertEqual({<<0:5>>, Tail4 = <<163, 96, 20, 140, 2, 8, 0, 0>>}, Tail3),
+  % head of the bin list is: 2#00000101
+  % we steal the bits 101 (use them as lsb of code 197), and left is 00000.
+  {258, 2, Tail4, 5} = decode_distance_pair(Fixed, 285, Tail3),
+  MaxSubstr = clone_output([63, 63], 2, 258),
+
+  % Repeat 2
+  {ok, {8, 163, 285}, Tail5 = {<<>>, <<96, 20, 140, 2, 8, 0, 0>>}} = flate_huffman:get_symbol(Fixed, Tail4),
+  {258, 2, Tail6, 5} = decode_distance_pair(Fixed, 285, Tail5),
+  MaxSubstr = clone_output([63, 63] ++ MaxSubstr, 2, 258),
+
+  % Repeat 3
+  ?LOG_NOTICE("TAIL6 = ~p", [Tail6]),
+  {ok, {8, 163, 285}, Tail7} = flate_huffman:get_symbol(Fixed, Tail6),
+  {258, 2, Tail8, 5} = decode_distance_pair(Fixed, 285, Tail7),
+  MaxSubstr = clone_output([63, 63] ++ MaxSubstr ++ MaxSubstr, 2, 258),
+
+  % Repeat 4
+  {ok, {8, 163, 285}, Tail9} = flate_huffman:get_symbol(Fixed, Tail8),
+  {258, 2, Tail10, 5} = decode_distance_pair(Fixed, 285, Tail9),
+  MaxSubstr = clone_output([63, 63] ++ MaxSubstr ++ MaxSubstr ++ MaxSubstr, 2, 258),
+
+  % Repeat 5, shorter length
+  {ok, {7, 16, 260}, Tail11} = flate_huffman:get_symbol(Fixed, Tail10),
+  {6, 2, Tail12, 5} = decode_distance_pair(Fixed, 260, Tail11),
+  ShortSubstr = clone_output([63, 63] ++ MaxSubstr ++ MaxSubstr ++ MaxSubstr ++ MaxSubstr, 2, 6),
+
+  % end marker (7 bits) and padding (6 bits)
+  ?assertEqual({<<0:5>>, <<0>>}, Tail12).
+
+inflate_steps_test_() -> [fun () -> test_inflate_steps() end].
+
+% case flate_huffman:get_symbol(Fixed, Tail) of
+%   {ok, {Len, _, 256}, Tail} ->
+%     ?LOG_NOTICE("Collecting stops here"),
+%     {ok, list_to_binary(lists:reverse(Symbols)), Tail,
+%          (Bits + Len) div 8 + case Bits + Len rem 8 of 0 -> 0; _ -> 1 end};
+%   {ok, {Len, Code, Symbol}, Tail} when Symbol < 256 ->
+%     ?LOG_NOTICE("Collecting for literal: ~p -> ~p -> ~p~nHuffman: ~p", [Data, Code, Symbol, Huffman]),
+%     inflate_symbols(Huffman, Tail, [Symbol | Symbols], Bits + Len);
+%   {ok, {_, _, Code}, Tail1} ->
+%     ?LOG_NOTICE("Collecting for clone_output"),
+%     {Length, Dist, Tail, Read} = decode_distance_pair(Huffman, Code, Tail1),
+%     case clone_output(lists:flatten(Symbols), Dist, Length) of
+%       {error, Reason} -> error({error, Reason});
+%       Output -> inflate_symbols(Huffman, Tail, [Output | Symbols],
+%                                 Bits + Read)
+%     end
+% end.
+
 -endif.
+
+read_bits(Data, Count) -> flate_utils:read_bits(Data, Count).
+read_bits(Data, Count, Opts) -> flate_utils:read_bits(Data, Count, Opts).
