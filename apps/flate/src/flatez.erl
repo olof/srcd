@@ -42,12 +42,12 @@ in(Data) ->
 
   % deflate is 8, and only thing we support.
   <<CMF:1/binary, FLG:1/binary>> = HDR,
-  <<FLGVal:4, CMFVal:4>> = CMF,
+  <<_FLGVal:4, _CMFVal:4>> = CMF,
   <<CINFO:4, CM:4>> = CMF,
-  <<_FLEVEL:2, FDICT:1, _FCHECK:5>> = FLG,
+  <<_FLEVEL:2, _FDICT:1, _FCHECK:5>> = FLG,
   8 = CM,
 
-  Win = crypto:mod_pow(2, CINFO + 8, 16#7fff),
+  _Win = crypto:mod_pow(2, CINFO + 8, 16#7fff),
   % TODO: need to pass Win to flate:in
   %io:format(standard_error, "zlib tail: ~.2B~n", [Tail]),
   case flate:in(Tail) of

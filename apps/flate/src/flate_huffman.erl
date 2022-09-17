@@ -104,9 +104,7 @@ get_symbols_test_() -> [
 ].
 
 padding(Len) -> buf0(8 - Len rem 8).
-buf0(Len) ->
-  ?LOG_NOTICE("LEN = ~p", [Len]),
-  <<0:Len>>.
+buf0(Len) -> <<0:Len>>.
 
 t_pack_code(Len, Code) ->
   Pad = padding(Len),
@@ -275,10 +273,8 @@ codes([], _, _, Codes) -> lists:sort(Codes);
 codes([N|Tail], Lengths, Offsets, Codes) ->
   case lists:keytake(N, 2, Lengths) of
     false ->
-      %?LOG_NOTICE("[UNDEFINED]~nLengths: ~p~nCode: ~p", [Lengths, N]),
       codes(Tail, Lengths, Offsets, Codes);
     {value, {Value, N}, Rest} ->
-      %?LOG_NOTICE("[DEFINED]~nLengths: ~p~nOffsets: ~p~nCode ~p = ~p", [Lengths, Offsets, N, Value]),
       {Next, RestOffsets} = reserve_code(Offsets, N),
       codes([N|Tail], Rest, RestOffsets, [{Value, {N, Next}} | Codes])
   end.

@@ -114,43 +114,41 @@ inflate_block(no_compression, _, Data) ->
   {ok, Decoded, Tail, Len + 4};
 inflate_block(huffman_fixed, InitialBits, Data) ->
   inflate_symbols(flate_huffman:init(fixed()), {InitialBits, Data});
-inflate_block(huffman_dyn, HLIT, <<HDIST:5, HCLEN:4, Data/binary>>) ->
-  CodeLen = (HCLEN + 4) * 3,
-  TrailBitLen = abs(8 - CodeLen) rem 8,
-  <<CodeAlphabet:CodeLen/bits, Tail/bits>> = Data,
-  <<InitialBits:TrailBitLen/bits, BinTail/binary>> = Tail,
-  % HLIT + 257 code lengths for the literal/length alphabet,
-  %  encoded using the code length Huffman code
-
-  % HDIST + 1 code lengths for the distance alphabet,
-  %    encoded using the code length Huffman code
-
-  % The actual compressed data of the block,
-  %    encoded using the literal/length and distance Huffman
-  %    codes
-
-  % The literal/length symbol 256 (end of data),
-  %    encoded using the literal/length Huffman code
-
-  % TODO: maybe i forgot to do byte accounting on this?
-  % TODO: codetree doesn't exist. So there's that.
-  {ok, Codes, D} = flate_huffman:codetree(dynamic, {InitialBits, BinTail}),
-  inflate_symbols(Codes, D).
+inflate_block(huffman_dyn, _, _) ->
+  {error, huffman_dyn_not_implemented}.
+%inflate_block(huffman_dyn, HLIT, <<HDIST:5, HCLEN:4, Data/binary>>) ->
+%  CodeLen = (HCLEN + 4) * 3,
+%  TrailBitLen = abs(8 - CodeLen) rem 8,
+%  <<CodeAlphabet:CodeLen/bits, Tail/bits>> = Data,
+%  <<InitialBits:TrailBitLen/bits, BinTail/binary>> = Tail,
+%  % HLIT + 257 code lengths for the literal/length alphabet,
+%  %  encoded using the code length Huffman code
+%
+%  % HDIST + 1 code lengths for the distance alphabet,
+%  %    encoded using the code length Huffman code
+%
+%  % The actual compressed data of the block,
+%  %    encoded using the literal/length and distance Huffman
+%  %    codes
+%
+%  % The literal/length symbol 256 (end of data),
+%  %    encoded using the literal/length Huffman code
+%
+%  % TODO: maybe i forgot to do byte accounting on this?
+%  % TODO: codetree doesn't exist. So there's that.
+%  {ok, Codes, D} = flate_huffman:codetree(dynamic, {InitialBits, BinTail}),
+%  inflate_symbols(Codes, D).
 
 inflate_symbols(Huffman, Data) -> inflate_symbols(Huffman, Data, [], 0).
 inflate_symbols(Huffman, Data, Symbols, BitCount) ->
-  ?LOG_NOTICE("Collected symbols: ~p", [Symbols]),
   case flate_huffman:get_symbol(Huffman, Data) of
     {ok, {Len, _, 256}, Tail} ->
-      ?LOG_NOTICE("Collecting stops here"),
       {ok, list_to_binary(lists:reverse(Symbols)), Tail,
 	   (BitCount + Len) div 8 + case BitCount + Len rem 8 of 0 -> 0; _ -> 1 end};
-    {ok, {Len, Code, Symbol}, Tail} when Symbol < 256 ->
-      ?LOG_NOTICE("Collecting for literal: ~p -> ~p -> ~p~nHuffman: ~p", [Data, Code, Symbol, Huffman]),
+    {ok, {Len, _Code, Symbol}, Tail} when Symbol < 256 ->
       inflate_symbols(Huffman, Tail, [Symbol | Symbols], BitCount + Len);
-    {ok, {Len, _, Code}, Tail1} ->
-      ?LOG_NOTICE("Collecting for clone_output"),
-      {Length, Dist, Tail, Read} = decode_distance_pair(Huffman, Code, Tail1),
+    {ok, {Len, _Code, Code}, Tail1} ->
+      {Length, Dist, Tail, Read} = decode_distance_pair(Code, Tail1),
       case clone_output(lists:flatten(Symbols), Dist, Length) of
         {error, Reason} -> error({error, Reason});
         Output -> inflate_symbols(Huffman, Tail, [Output | Symbols],
@@ -178,7 +176,6 @@ inflate_symbols_test_() -> lists:concat([
 clone_output(Symbols, Dist, _) when Dist > length(Symbols) ->
   {error, {deflate_distance_too_far_back, Dist}};
 clone_output(Symbols, Dist, Length) ->
-  %?LOG_NOTICE("clone_output: len=~p dist=~p, outlen: ~p", [Length, Dist, length(Symbols)]),
   {_, Buf} = lists:split(length(Symbols)-Dist, Symbols),
   clone_output(Buf, Length, [], []).
 
@@ -213,30 +210,23 @@ clone_output_test_() -> [
 
 -endif.
 
-decode_distance_pair(Huffman, Code, Data) ->
+decode_distance_pair(Code, Data) ->
   {Length, LengthTail, BitsRead1} = decode_distance_len(Code, Data),
   {Distance, DistanceTail, BitsRead2} = decode_distance(LengthTail),
-  ?LOG_NOTICE("Got input data = ~p~nGot length: ~p~nGot distance: ~p", [Data, Length, Distance]),
   {Length, Distance, DistanceTail, BitsRead1 + BitsRead2}.
 
 decode_distance_len(Code, Data) ->
   {ExtraBits, Len} = distance_code_length(Code),
   {Extra, Tail} = read_bits(Data, ExtraBits),
-  ?LOG_NOTICE("decode_distance_len: code=~p, len=~p, xbits=~p  bits: ~p", [Code, Len, ExtraBits, Extra]),
-  %{((Len bsl ExtraBits) + Extra, Tail, ExtraBits}.
   {Len + flate_utils:reverse_int(Extra, ExtraBits), Tail, ExtraBits}.
 
 decode_distance(Data) ->
   {RevCode, Extras} = read_bits(Data, 5, [reverse_input_byte_order]),
   Code = flate_utils:reverse_int(RevCode, 5),
   Base = distance_base(Code),
-  ?LOG_NOTICE("DistanceCode: ~p  /  ~p (base: ~p)~nInput: ~p", [RevCode, Code, Base, Data]),
   {Code, ExtraBits} = distance_extra_bits(Code),
   {Extra, Tail} = read_bits(Extras, ExtraBits),
   {Base + Extra + 1, Tail, 5 + ExtraBits}.
-
-% {Extra, Tail} = read_bits(Extras, ExtraBits),
-% ?LOG_NOTICE("decode_distance: code=~p, xbits=~p bits: ~p", [DistanceCode, ExtraBits, Extras]),
 
 fixed() ->
   % Literal value    Bits                 Codes
@@ -252,44 +242,20 @@ fixed() ->
     [{X, 8} || X <- lists:seq(280, 287)]
   ]).
 
-dynamic() ->
-  % Literal value    Bits                 Codes
-  % -------------------------------------------------------
-  %       0 - 15     8         00110000 through  10111111
-  %           16     9        110010000 through 111111111
-  %           17     7          0000000 through   0010111
-  %     280 - 28     7         11000000 through  11000111
-  lists:concat([
-    [{X, 3} || X <- lists:seq(0, 15)],
-    [{X, 9} || X <- lists:seq(144, 255)],
-    [{X, 7} || X <- lists:seq(256, 279)],
-    [{X, 8} || X <- lists:seq(280, 287)]
-  ]).
-
--define(distance_code(Lower, Upper, Extra),
-        distance_code(N) when N >= Lower andalso N =< Upper div 4 ->
-	  {N, {5, Extra * 2 + 3}};
-        distance_code(N) when N > Upper div 4 andalso (N =< Upper) ->
-	  {N, {5, Extra * 2 + 3}}).
-
-distance_codes() -> [distance_code(N) || N <- lists:seq(1, 32768) ].
-distance_code(1) -> {1, {5, 0}};
-distance_code(2) -> {2, {5, 1}};
-distance_code(3) -> {3, {5, 2}};
-distance_code(4) -> {4, {5, 3}};
-?distance_code(      5,     8,   1);
-?distance_code(      9,    16,   2);
-?distance_code(     17,    32,   3);
-?distance_code(     33,    64,   4);
-?distance_code(     65,   128,   5);
-?distance_code(    129,   256,   6);
-?distance_code(    257,   512,   7);
-?distance_code(    513,  1024,   8);
-?distance_code(   1025,  2048,   9);
-?distance_code(   2049,  4096,  10);
-?distance_code(   4097,  8192,  11);
-?distance_code(   8193, 16384,  12);
-?distance_code(  16385, 32768,  13).
+%dynamic() ->
+%  % Literal value    Bits                 Codes
+%  % -------------------------------------------------------
+%  %       0 - 15     8         00110000 through  10111111
+%  %           16     9        110010000 through 111111111
+%  %           17     7          0000000 through   0010111
+%  %     280 - 28     7         11000000 through  11000111
+%  % FIXME: this is not right
+%  lists:concat([
+%    [{X, 3} || X <- lists:seq(0, 15)],
+%    [{X, 9} || X <- lists:seq(144, 255)],
+%    [{X, 7} || X <- lists:seq(256, 279)],
+%    [{X, 8} || X <- lists:seq(280, 287)]
+%  ]).
 
 distance_base() -> [
   { 0,     1},
@@ -324,19 +290,7 @@ distance_base() -> [
   {29, 24577}
 ].
 distance_base(Code) ->
-  ?LOG_NOTICE("Distance_base ~p", [Code]),
   {Code, Value} = lists:keyfind(Code, 1, distance_base()),
-  Value.
-
-distance_length_base() -> [
-  { 0,   3}, { 1,   4}, { 2,   5}, { 3,   6}, { 4,   7}, { 5,   8}, { 6,   9},
-  { 7,  10}, { 8,  11}, { 9,  13}, {10,  15}, {11,  17}, {12,  19}, {13,  23},
-  {14,  27}, {15,  31}, {16,  35}, {17,  43}, {18,  51}, {19,  59}, {20,  67},
-  {21,  83}, {22,  99}, {23, 115}, {24, 131}, {25, 163}, {26, 195}, {27, 227},
-  {28, 258}
-].
-distance_length_base(Code) ->
-  {Code, Value} = lists:keyfind(Code, 1, distance_length_base()),
   Value.
 
 distance_extra_bits() ->
@@ -361,7 +315,7 @@ distance_extra_bits(Code) ->
   lists:keyfind(Code, 1, distance_extra_bits()).
 
 distance_code_length(Code) ->
-  {L, _} = case Code of
+  case Code of
     257 -> {0,   3}; 258 -> {0,   4}; 259 -> {0,   5}; 260 -> {0,   6};
     261 -> {0,   7}; 262 -> {0,   8}; 263 -> {0,   9}; 264 -> {0,  10};
     265 -> {1,  11}; 266 -> {1,  13}; 267 -> {1,  15}; 268 -> {1,  17};
@@ -371,7 +325,6 @@ distance_code_length(Code) ->
     281 -> {5, 131}; 282 -> {5, 163}; 283 -> {5, 195}; 284 -> {5, 227};
     285 -> {0, 258}
   end.
-  %{L, Code}.
 
 int_to_btype(0) -> no_compression;
 int_to_btype(1) -> huffman_fixed;
@@ -426,7 +379,9 @@ int_to_btype(N) -> {invalid_zlib_btype, N}.
 
 test_inflate_steps() ->
   In = <<179, 183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0>>,
-  Expect = list_to_binary(lists:duplicate(1040, "?")),
+  MaxSubstr = lists:duplicate(258, $?),
+  ShortSubstr = lists:duplicate(6, $?),
+
   Fixed = flate_huffman:init(fixed()),
 
   % parse code tree, parse compressed bytes
@@ -448,36 +403,33 @@ test_inflate_steps() ->
   % ??? 24, i got it to 31
   ?assertEqual({<<24:5>>, <<5, 163, 96, 20, 140, 2, 8, 0, 0>>}, Tail2),
 
-  MaxSubstr = lists:duplicate(258, $?),
-  ShortSubstr = lists:duplicate(6, $?),
-
   % Repeat 1
   {ok, {8, 163, 285}, Tail3} = flate_huffman:get_symbol(Fixed, Tail2),
-  ?assertEqual({<<0:5>>, Tail4 = <<163, 96, 20, 140, 2, 8, 0, 0>>}, Tail3),
+  ?assertEqual({<<0:5>>, <<163, 96, 20, 140, 2, 8, 0, 0>>}, Tail3),
   % head of the bin list is: 2#00000101
   % we steal the bits 101 (use them as lsb of code 197), and left is 00000.
-  {258, 2, Tail4, 5} = decode_distance_pair(Fixed, 285, Tail3),
+  {258, 2, Tail4, 5} = decode_distance_pair(285, Tail3),
+  ?assertEqual({<<>>, <<163, 96, 20, 140, 2, 8, 0, 0>>}, Tail4),
   MaxSubstr = clone_output([63, 63], 2, 258),
 
   % Repeat 2
   {ok, {8, 163, 285}, Tail5 = {<<>>, <<96, 20, 140, 2, 8, 0, 0>>}} = flate_huffman:get_symbol(Fixed, Tail4),
-  {258, 2, Tail6, 5} = decode_distance_pair(Fixed, 285, Tail5),
+  {258, 2, Tail6, 5} = decode_distance_pair(285, Tail5),
   MaxSubstr = clone_output([63, 63] ++ MaxSubstr, 2, 258),
 
   % Repeat 3
-  ?LOG_NOTICE("TAIL6 = ~p", [Tail6]),
   {ok, {8, 163, 285}, Tail7} = flate_huffman:get_symbol(Fixed, Tail6),
-  {258, 2, Tail8, 5} = decode_distance_pair(Fixed, 285, Tail7),
+  {258, 2, Tail8, 5} = decode_distance_pair(285, Tail7),
   MaxSubstr = clone_output([63, 63] ++ MaxSubstr ++ MaxSubstr, 2, 258),
 
   % Repeat 4
   {ok, {8, 163, 285}, Tail9} = flate_huffman:get_symbol(Fixed, Tail8),
-  {258, 2, Tail10, 5} = decode_distance_pair(Fixed, 285, Tail9),
+  {258, 2, Tail10, 5} = decode_distance_pair(285, Tail9),
   MaxSubstr = clone_output([63, 63] ++ MaxSubstr ++ MaxSubstr ++ MaxSubstr, 2, 258),
 
   % Repeat 5, shorter length
   {ok, {7, 16, 260}, Tail11} = flate_huffman:get_symbol(Fixed, Tail10),
-  {6, 2, Tail12, 5} = decode_distance_pair(Fixed, 260, Tail11),
+  {6, 2, Tail12, 5} = decode_distance_pair(260, Tail11),
   ShortSubstr = clone_output([63, 63] ++ MaxSubstr ++ MaxSubstr ++ MaxSubstr ++ MaxSubstr, 2, 6),
 
   % end marker (7 bits) and padding (6 bits)
@@ -487,15 +439,12 @@ inflate_steps_test_() -> [fun () -> test_inflate_steps() end].
 
 % case flate_huffman:get_symbol(Fixed, Tail) of
 %   {ok, {Len, _, 256}, Tail} ->
-%     ?LOG_NOTICE("Collecting stops here"),
 %     {ok, list_to_binary(lists:reverse(Symbols)), Tail,
 %          (Bits + Len) div 8 + case Bits + Len rem 8 of 0 -> 0; _ -> 1 end};
 %   {ok, {Len, Code, Symbol}, Tail} when Symbol < 256 ->
-%     ?LOG_NOTICE("Collecting for literal: ~p -> ~p -> ~p~nHuffman: ~p", [Data, Code, Symbol, Huffman]),
 %     inflate_symbols(Huffman, Tail, [Symbol | Symbols], Bits + Len);
 %   {ok, {_, _, Code}, Tail1} ->
-%     ?LOG_NOTICE("Collecting for clone_output"),
-%     {Length, Dist, Tail, Read} = decode_distance_pair(Huffman, Code, Tail1),
+%     {Length, Dist, Tail, Read} = decode_distance_pair(Code, Tail1),
 %     case clone_output(lists:flatten(Symbols), Dist, Length) of
 %       {error, Reason} -> error({error, Reason});
 %       Output -> inflate_symbols(Huffman, Tail, [Output | Symbols],
