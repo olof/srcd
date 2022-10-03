@@ -22,11 +22,10 @@ export SSH_USER_KEY=$SSH_USER_KEY_DIR/id_rsa
 export SSH_USER_KNOWN_HOSTS=$SSH_USER_KEY_DIR/known_hosts
 export SSH_HOST_KEY_DIR=$tmpd/ssh/host
 export SSH_HOST_KEY=$SSH_HOST_KEY_DIR/ssh_host_rsa_key
+export GIT_TEMPLATE_DIR=$tmpd/empty
 
 ssh-keygen -t rsa -f "$SSH_USER_KEY" -N "" >/dev/null
 ssh-keygen -t rsa -f "$SSH_HOST_KEY" -N "" >/dev/null
-
-git config --global init.templateDir "$tmpd/empty"
 
 export SRCDIR=$PWD
 export TESTDIR=$PWD/tests
