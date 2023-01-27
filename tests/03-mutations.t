@@ -1,4 +1,4 @@
-plan 24
+plan 30
 
 description <<'EOF'
 Initiailize a default set of repos and perform write operations
