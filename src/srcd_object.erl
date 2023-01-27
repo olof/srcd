@@ -40,7 +40,7 @@ read(Fh, Digest1) ->
   ])),
   % So, we can't do read(Length) because Length refers to uncompressed
   % data size and we are reading compressed data. We really have no good
-  % way of know how much to read.
+  % way of knowing how much to read.
   %   We could read a byte at a time until zlib is happy, then stop, and
   % read another object.
   %   We could try to make zlib let us know how long it has read and glue
