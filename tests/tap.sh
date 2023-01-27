@@ -72,6 +72,7 @@ _tap() {
 	esac
 	N=$((N+1))
 	echo "$status $N ${msg:+- $msg}"
+	[ "$TAP_STATUS" -eq 0 ] || [ "$FAIL_FAST" != y ] || exit 1
 }
 
 _ok_ret() {
