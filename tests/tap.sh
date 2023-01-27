@@ -36,9 +36,12 @@ _dump_log() {
 	[ "$NO_DUMP_LOGS" ] && return
 	cmd=${3:-cat}
 	[ -e "$2" ] && {
-		printf "%s:\n" "$1"
-		$cmd "$2"
-		echo
+		case "$2" in
+			${DUMP_LOGS:-*})
+				printf "%s:\n" "$1"
+				$cmd "$2"
+				echo
+		esac
 	}
 }
 
