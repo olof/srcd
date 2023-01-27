@@ -37,4 +37,4 @@ export GIT_SSH_COMMAND="$ssh"
 
 cd "$tmpd"
 
-prove -e "$SRCDIR"/tests/tap.sh -v "$SRCDIR"/tests/*.t
+prove -e "$SRCDIR"/tests/tap.sh -v "$SRCDIR"/tests/${*:-*}.t
