@@ -124,6 +124,19 @@ canon(Type, D) ->
   Len = length(Payload),
   lists:flatten(io_lib:format("~s ~b\0~s", [Type, Len, Payload])).
 
+parse_tree_nodes(Object) ->
+  parse_tree_nodes(Object, []).
+parse_tree_nodes("", Res) -> lists:reverse(Res);
+parse_tree_nodes(Object, Res) ->
+  [Mode, Tail1] = string:split(Object, " "),
+  [Name, Tail0] = string:split(Tail1, "\0"),
+  {Hash, Tail} = lists:split(20, Tail0),
+  parse_tree_nodes(Tail, [#tree_node{
+    mode=Mode,
+    name=Name,
+    object=srcd_utils:bytes_to_hex(Hash)
+  } | Res]).
+
 parse(Object) ->
   [Head, Payload] = string:split(Object, "\0"),
   [Type, Len] = string:split(Head, " "),
@@ -132,13 +145,9 @@ parse(blob, Object) ->
   {ok, #blob{data=Object}};
 parse(tree, Object) ->
   % TODO: How are multiple entries encoded? \n sep?
-  [Mode, Tail] = string:split(Object, " "),
-  [Name, Hash] = string:split(Tail, "\0"),
-  {ok, #tree{
-    items=[
-      #tree_node{mode=Mode, name=Name, object=srcd_utils:bytes_to_hex(Hash)}
-    ]
-  }};
+  % REPLY: Nope. Just concatted.
+  %        [ <mode*> 32 <name*> 0 <hash{20}> ]*
+  {ok, #tree{items=parse_tree_nodes(Object)}};
 parse(commit, Object) ->
   {Head, Msg} = parse_commit(Object),
 
