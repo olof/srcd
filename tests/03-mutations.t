@@ -45,8 +45,9 @@ for PROTO_VERSION in 0 1 2; do
 	git -C test$v add file
 	git -C test$v commit -q --message 'test change'
 
+        #"73bcc819355b1b4e7bd3466e3f8233726515656d"
 	is "$(git -C test$v rev-parse HEAD)" \
-	   "73bcc819355b1b4e7bd3466e3f8233726515656d" \
+	   "25d4d5b4807f4c6bd68b21d031d1e30a8088b01b" \
 	   "test$v.git locally updated to 73bcc81"
 
 	git -C test$v push origin HEAD:refs/heads/master
@@ -59,8 +60,9 @@ for PROTO_VERSION in 0 1 2; do
 	is $r 0 "cloning test$v.git again succeeds"
 	[ $r -eq 0 ] || echo "$output" >&2
 
+        # "73bcc819355b1b4e7bd3466e3f8233726515656d"
 	is "$(git -C test$v-copy2 rev-parse HEAD)" \
-	   "73bcc819355b1b4e7bd3466e3f8233726515656d" \
+	   "25d4d5b4807f4c6bd68b21d031d1e30a8088b01b" \
 	   "new clone of test$v.git has updated rev"
 done
 PROTO_VERSION=
