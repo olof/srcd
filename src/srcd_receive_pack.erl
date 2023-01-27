@@ -32,17 +32,17 @@ wait_for_input(Data, Res, Caps0) ->
     {data, Line} ->
       case Caps0 of
         [] -> [Line1, Caps] = string:split(Line, "\0"),
-              wait_for_input(Data, [Line1|Res], parse_caps(Caps));
-        _ -> wait_for_input(Data, [Line|Res], Caps0)
+              wait_for_input(Data, [Line1 | Res], parse_caps(Caps));
+        _ -> wait_for_input(Data, [Line | Res], Caps0)
       end
   end.
 
 parse_caps(Caps) -> filter_caps(string:split(Caps, " ", all), []).
 filter_caps([], Res) -> lists:reverse(Res);
-filter_caps([Cap0|Caps], Res) ->
+filter_caps([Cap0 | Caps], Res) ->
   case parse_cap(string:split(Cap0, "=")) of
     skip -> filter_caps(Caps, Res);
-    Cap -> filter_caps(Caps, [Cap|Res])
+    Cap -> filter_caps(Caps, [Cap | Res])
   end.
 parse_cap(["agent", UA]) -> {agent, UA};
 parse_cap(["object-format", Hash]) -> {object_format, Hash};
@@ -79,7 +79,7 @@ process_cmds({#?MODULE{repo=Repo} = Data, Cmds, Packfile}) ->
   srcd_repo:write(Repo, Cmds, Packfile).
 
 check_cmds(Repo, [], Caps) -> ok;
-check_cmds(Repo, [Cmd|Cmds], Caps) ->
+check_cmds(Repo, [Cmd | Cmds], Caps) ->
   case check_cmd(Repo, Caps, Cmd) of
     ok -> check_cmds(Repo, Cmds, Caps);
     {error, Reason} -> {error, invalid_cmd, Cmd, Reason}

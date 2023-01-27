@@ -47,7 +47,7 @@ wait_for_input(Data, Res, Caps0) ->
       {Line, Caps} = capture_caps(Line1, []),
       ?LOG_NOTICE("Got line [~p]: ~p", [Caps, Line]),
       ?LOG_NOTICE("Got line [~p]: ~p", [Caps, parse_line(Line)]),
-      wait_for_input(Data, [parse_line(Line)|Res], Caps)
+      wait_for_input(Data, [parse_line(Line) | Res], Caps)
   end.
 
 process_lines({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
@@ -89,7 +89,7 @@ fetch_ack(Data, Repo, Wants, Haves) ->
   end.
 
 has_all_oids(Repo, []) -> true;
-has_all_oids(Repo, [Oid|Oids]) ->
+has_all_oids(Repo, [Oid | Oids]) ->
   case srcd_repo:exists(Repo, Oid) of
     true -> has_all_oids(Repo, Oids);
     false -> false
@@ -103,7 +103,7 @@ ack_oid(Repo, Oid) ->
   lists:concat([Res, " ", Oid, "\n"]).
 
 alt_delims(Line0, []) -> nomatch;
-alt_delims(Line0, [Delim|Alts]) ->
+alt_delims(Line0, [Delim | Alts]) ->
   case string:split(Line0, Delim) of
     [Line0] -> alt_delims(Line0, Alts);
     [Line, Caps] -> {Line, Caps}
@@ -121,10 +121,10 @@ capture_caps(Line, Caps) -> {Line, Caps}.
 
 parse_caps(Caps) -> filter_caps(string:split(Caps, " ", all), []).
 filter_caps([], Res) -> lists:reverse(Res);
-filter_caps([Cap0|Caps], Res) ->
+filter_caps([Cap0 | Caps], Res) ->
   case parse_cap(string:split(Cap0, "=")) of
     skip -> filter_caps(Caps, Res);
-    Cap -> filter_caps(Caps, [Cap|Res])
+    Cap -> filter_caps(Caps, [Cap | Res])
   end.
 parse_cap(["agent", UA]) -> {agent, UA};
 parse_cap(["object-format", Hash]) -> {object_format, Hash};
@@ -174,14 +174,14 @@ process_command({_, _, _, _}) ->
 
 ls_ref_args(Args) -> ls_ref_args(Args, []).
 ls_ref_args([], Res) -> lists:reverse(Res);
-ls_ref_args([Arg|Args], Res) ->
-  [Cmd|MaybeArgArgs] = string:split(Arg, " "),
+ls_ref_args([Arg | Args], Res) ->
+  [Cmd | MaybeArgArgs] = string:split(Arg, " "),
   ls_ref_args(Args, case Cmd of
-    "peel" -> [peel|Res];
-    "symrefs" -> [symrefs|Res];
+    "peel" -> [peel | Res];
+    "symrefs" -> [symrefs | Res];
     "ref-prefix" ->
       [ArgArgs] = MaybeArgArgs,
-      [{prefix, ArgArgs}|Res]
+      [{prefix, ArgArgs} | Res]
   end).
 
 ls_refs({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
@@ -205,7 +205,7 @@ ls_refs({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
   end.
 
 match_any_prefix([], Term) -> false;
-match_any_prefix([Prefix|Prefixes], Term) ->
+match_any_prefix([Prefix | Prefixes], Term) ->
   case string:prefix(Term, Prefix) of
     nomatch -> match_any_prefix(Prefixes, Term);
     _ -> true
@@ -213,9 +213,9 @@ end.
 
 parse_args(Args) -> parse_args(Args, []).
 parse_args([Repo], Res) -> {ok, {Repo, Res}};
-parse_args(["--strict"|Args], Res) ->
+parse_args(["--strict" | Args], Res) ->
   parse_args(Args, [strict | Res]);
-parse_args(["--stateless-rpc"|Args], Res) ->
+parse_args(["--stateless-rpc" | Args], Res) ->
   parse_args(Args, [stateless_rpc | Res]);
-parse_args(["--advertise-refs"|Args], Res) ->
+parse_args(["--advertise-refs" | Args], Res) ->
   parse_args(Args, [advertise_refs | Res]).

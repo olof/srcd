@@ -34,7 +34,7 @@ inflate(IoDevice) ->
 inflate_reader({Reader, Pos}) ->
   % a zlib header is two bytes; by reading one byte here, we know that the zlib
   % header has been read in full as inflate_reader/7 will also read one byte.
-  inflate_reader({Reader, Pos+1}, Reader(Pos, 1)).
+  inflate_reader({Reader, Pos + 1}, Reader(Pos, 1)).
 inflate_reader(Reader, PreBuf) ->
   %?LOG_NOTICE("Inflate with prebuf: ~p", [PreBuf]),
   Z = zlib:open(),
@@ -61,7 +61,8 @@ inflate_reader(Z, {Reader, Pos}, InProc, InUnproc, Out, ReadCount0, N) ->
   NewPos = Pos + 1,
   case catch zlib:inflate(Z, NewBuf) of
     {'EXIT', {data_error, _}} ->
-      inflate_reader(Z, {Reader, NewPos}, InProc, NewBuf, Out, ReadCount, N+1);
+      inflate_reader(Z, {Reader, NewPos}, InProc,
+                     NewBuf, Out, ReadCount, N + 1);
     {'EXIT', Err} -> ?LOG_NOTICE("unexpected exit inflate: ~p", [Err]),
                      {ok, ReadCount0, Out, InProc ++ NewBuf};
     [] ->
@@ -73,7 +74,7 @@ inflate_reader(Z, {Reader, Pos}, InProc, InUnproc, Out, ReadCount0, N) ->
       end;
     [New] ->
       inflate_reader(Z, {Reader, NewPos}, InProc ++ NewBuf, [],
-                     Out ++ binary_to_list(New), ReadCount, N+1)
+                     Out ++ binary_to_list(New), ReadCount, N + 1)
   end.
 
 -ifdef(TEST).
@@ -197,7 +198,7 @@ test_blob(Buf, InitPos, Expect) ->
     {ok, GotLen, GotBlob, GotCompressed} -> {
       not_ok, {unexpected_result, [
         {blob, GotBlob},
-        {compressed_len, {GotLen, GotLen-TestLen}},
+        {compressed_len, {GotLen, GotLen - TestLen}},
         {compressed, GotCompressed}
       ]}};
     X -> {not_ok, X}

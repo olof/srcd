@@ -73,7 +73,7 @@ read_object_header(Fh, Digest, N0, Bits, Type) ->
   N = N0 + (Byte band 127 bsl Bits),
   case Byte band 128 of
     0 -> {Type, N, D};
-    128 -> read_object_header(Fh, D, N, Bits+7, Type)
+    128 -> read_object_header(Fh, D, N, Bits + 7, Type)
   end.
 
 read_packfile_signature(#pack{hash=D} = State) ->
@@ -175,7 +175,7 @@ parse_commit(Object) ->
 
 deps(#object{data=D}) -> deps(D);
 deps(#blob{}) -> [];
-deps(#commit{tree=Tree, parents=Parents}) -> [Tree|Parents];
+deps(#commit{tree=Tree, parents=Parents}) -> [Tree | Parents];
 deps(#tree{items=Items}) -> [Oid || #tree_node{object=Oid} <- Items].
 
 parse_commit_head(Head) ->

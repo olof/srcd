@@ -32,8 +32,8 @@ build(Repo, Ids) ->
 
 object_ids(#pack{objects=Objects}) -> object_ids(Objects, []).
 object_ids([], ObjectIds) -> lists:reverse(ObjectIds);
-object_ids([#object{id=Id}|Objects], ObjectIds) ->
-  object_ids(Objects, [Id|ObjectIds]).
+object_ids([#object{id=Id} | Objects], ObjectIds) ->
+  object_ids(Objects, [Id | ObjectIds]).
 
 object_deps(#pack{objects=Objects}) -> object_deps(Objects, []).
 object_deps([], ObjectIds) -> ObjectIds;
@@ -62,8 +62,8 @@ read_packfile_objects({IoDevice, #pack{count=Count, hash=Digest} = State}) ->
 read_packfile_objects(_, Digest, 0, Res) -> {ok, lists:reverse(Res), Digest};
 read_packfile_objects(IoDevice, Digest, Count, Res) ->
   {ok, Object, D} = srcd_object:read(IoDevice, Digest),
-  ?LOG_NOTICE("Object unpacked (~p remaining): ~p", [Count-1, Object]),
-  read_packfile_objects(IoDevice, D, Count-1, [Object | Res]).
+  ?LOG_NOTICE("Object unpacked (~p remaining): ~p", [Count - 1, Object]),
+  read_packfile_objects(IoDevice, D, Count - 1, [Object | Res]).
 
 read_packfile_signature({IoDevice, #pack{hash=D} = State}) ->
   Hash = crypto:hash_final(D),

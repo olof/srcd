@@ -42,7 +42,7 @@ init([Repo, Refs0, Objects]) ->
 
 build_index(Refs, Objects) -> build_index(Refs, Objects, #{}).
 build_index(Refs, [], Res) -> {ok, Res};
-build_index(Refs, [#object{id=Id, data=Data}|Objects], Res) ->
+build_index(Refs, [#object{id=Id, data=Data} | Objects], Res) ->
   build_index(Refs, Objects, Res#{Id => Data}).
 
 handle_call(head, _, #?STATE{head=Ref} = State) ->
@@ -78,7 +78,7 @@ handle_call(info, _, #?STATE{refs=Refs, objects=Objects} = State) ->
 handle_cast(_, State) -> {noreply, State}.
 
 apply_ref_cmds(Refs, Objects, []) -> Refs;
-apply_ref_cmds(Refs, Objects, [Cmd|Cmds]) ->
+apply_ref_cmds(Refs, Objects, [Cmd | Cmds]) ->
   apply_ref_cmds(apply_ref_cmd(Refs, Objects, Cmd), Objects, Cmds).
 
 apply_ref_cmd(Refs, Objects, {update, Ref, {Old, New}}) ->

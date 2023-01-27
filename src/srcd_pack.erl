@@ -36,8 +36,8 @@ advertisement(Version, Refs, Caps) ->
   build_pkt(prepend_version(Version, [CapLine | (RefLines ++ [flush])])).
 
 prepend_version(0, Pkt) -> Pkt;
-prepend_version(1, Pkt) -> ["version 1\n"|Pkt];
-prepend_version(2, Pkt) -> ["version 2\n"|Pkt].
+prepend_version(1, Pkt) -> ["version 1\n" | Pkt];
+prepend_version(2, Pkt) -> ["version 2\n" | Pkt].
 
 build_pkt(Lines) ->
   {ok, lists:concat([pkt_line(Line) || Line <- Lines])}.
@@ -74,8 +74,8 @@ read_command(Cmd, Caps, Args, DelimSeen) ->
     flush -> {Cmd, Caps, lists:reverse(Args)};
     delim -> read_command(Cmd, lists:reverse(Caps), Args, true);
     {data, Input} -> case DelimSeen of
-      true -> read_command(Cmd, Caps, [Input|Args], DelimSeen);
-      _ -> read_command(Cmd, [parse_cap(Input)|Caps], Args, DelimSeen)
+      true -> read_command(Cmd, Caps, [Input | Args], DelimSeen);
+      _ -> read_command(Cmd, [parse_cap(Input) | Caps], Args, DelimSeen)
     end
   end.
 

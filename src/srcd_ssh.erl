@@ -56,12 +56,12 @@ terminate(_, #?STATE{daemon=Daemon}) ->
 
 env_to_opts(#{<<"GIT_PROTOCOL">> := Proto}) -> proto_params(Proto);
 env_to_opts(_) -> proto_params([]).
-proto_params([<<"version=", N/binary>>|_]) ->
+proto_params([<<"version=", N/binary>> | _]) ->
   #{version => case N of
     <<"1">> -> 1;
     <<"2">> -> 2;
     _ -> 0
   end};
-proto_params([_|Tail]) -> proto_params(Tail);
+proto_params([_ | Tail]) -> proto_params(Tail);
 proto_params([]) -> #{version => 0};
 proto_params(Proto) -> proto_params(string:split(Proto, " ", all)).

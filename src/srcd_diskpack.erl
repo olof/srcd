@@ -83,12 +83,12 @@ write_refs(Packfile, Cmds) when is_list(Packfile) ->
   {ok, Fh} = open(refs, Packfile, [write]),
   write_refs(Fh, lists:keysort(1, maps:to_list(New)));
 write_refs(Fh, []) -> file:close(Fh);
-write_refs(Fh, [{Ref, Id}|New]) ->
+write_refs(Fh, [{Ref, Id} | New]) ->
   ok = io:put_chars(Fh, lists:concat([Id, " ", Ref])),
   write_refs(Fh, New).
 
 update_refs(New, []) -> {ok, New};
-update_refs(Old, [Cmd|Cmds]) -> update_refs(apply_ref_cmd(Old, Cmd), Cmds).
+update_refs(Old, [Cmd | Cmds]) -> update_refs(apply_ref_cmd(Old, Cmd), Cmds).
 
 apply_ref_cmd(Old, {create, Ref, Id}) ->
   case maps:is_key(Ref, Old) of
@@ -131,7 +131,7 @@ append_objects(Packfile, Objects) when is_list(Packfile) ->
   ok.
 
 write_objects(Fh, []) -> ok;
-write_objects(Fh, [Obj|Objects]) ->
+write_objects(Fh, [Obj | Objects]) ->
   ok = write_object(Fh, Obj),
   write_objects(Fh, Objects).
 

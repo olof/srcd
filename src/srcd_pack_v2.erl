@@ -85,8 +85,8 @@ fetch_packfile(Repo, Wants, Haves) ->
   ?LOG_NOTICE("fetch_packfile got ~p", [Data]),
   srcd_pack:build_pkt([
     "packfile\n",
-    [2|"ok this is happening\n"],
-    [1|Data],
+    [2 | "ok this is happening\n"],
+    [1 | Data],
     flush
   ]).
 
@@ -110,7 +110,7 @@ fetch_ack(Data, Repo, Wants, Haves) ->
   end.
 
 has_all_oids(Repo, []) -> true;
-has_all_oids(Repo, [Oid|Oids]) ->
+has_all_oids(Repo, [Oid | Oids]) ->
   case srcd_repo:exists(Repo, Oid) of
     true -> has_all_oids(Repo, Oids);
     false -> false
@@ -125,19 +125,19 @@ ack_oid(Repo, Oid) ->
 
 ls_ref_args(Args) -> ls_ref_args(Args, []).
 ls_ref_args([], Res) -> lists:reverse(Res);
-ls_ref_args([Arg|Args], Res) ->
-  [Cmd|MaybeArgArgs] = string:split(string:trim(Arg), " "),
+ls_ref_args([Arg | Args], Res) ->
+  [Cmd | MaybeArgArgs] = string:split(string:trim(Arg), " "),
   ls_ref_args(Args, case Cmd of
-    "peel" -> [peel|Res];
-    "symrefs" -> [symrefs|Res];
+    "peel" -> [peel | Res];
+    "symrefs" -> [symrefs | Res];
     "ref-prefix" ->
       [ArgArgs] = MaybeArgArgs,
-      [{prefix, ArgArgs}|Res]
+      [{prefix, ArgArgs} | Res]
   end).
 
 -define(KNOWN_ARG(F, Str),
-        F([[Str]|T], Res) -> F(T, [list_to_atom(Str)|Res]);
-        F([[Str, Arg]|T], Res) -> F(T, [{list_to_atom(Str), Arg}|Res])
+        F([[Str] | T], Res) -> F(T, [list_to_atom(Str) | Res]);
+        F([[Str, Arg] | T], Res) -> F(T, [{list_to_atom(Str), Arg} | Res])
        ).
 
 fetch_args(Args) ->
@@ -183,7 +183,7 @@ reflines([{Name, Commit, Attrs} | Refs], Res) ->
   ]).
 
 match_any_prefix([], Term) -> false;
-match_any_prefix([Prefix|Prefixes], Term) ->
+match_any_prefix([Prefix | Prefixes], Term) ->
   case string:prefix(Term, Prefix) of
     nomatch -> match_any_prefix(Prefixes, Term);
     _ -> true
@@ -191,9 +191,9 @@ match_any_prefix([Prefix|Prefixes], Term) ->
 
 parse_args(Args) -> parse_args(Args, []).
 parse_args([Repo], Res) -> {ok, {Repo, Res}};
-parse_args(["--strict"|Args], Res) ->
+parse_args(["--strict" | Args], Res) ->
   parse_args(Args, [strict | Res]);
-parse_args(["--stateless-rpc"|Args], Res) ->
+parse_args(["--stateless-rpc" | Args], Res) ->
   parse_args(Args, [stateless_rpc | Res]);
-parse_args(["--advertise-refs"|Args], Res) ->
+parse_args(["--advertise-refs" | Args], Res) ->
   parse_args(Args, [advertise_refs | Res]).

@@ -69,7 +69,7 @@ read_refs(_Db, Conn) ->
   )).
 
 write_refs(Conn, []) -> ok;
-write_refs(Conn, [Cmd|Cmds]) ->
+write_refs(Conn, [Cmd | Cmds]) ->
   '$done' = apply_ref_cmd(Conn, Cmd),
   write_refs(Conn, Cmds).
 
@@ -87,7 +87,7 @@ sql_exec(Conn, Query, Args) ->
   esqlite3:exec(list_to_binary(Query), Args, Conn).
 
 write_objects(Conn, []) -> ok;
-write_objects(Conn, [Obj|Objects]) ->
+write_objects(Conn, [Obj | Objects]) ->
   ok = write_object(Conn, Obj),
   write_objects(Conn, Objects).
 
