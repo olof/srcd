@@ -13,6 +13,7 @@ export BASE_URL=ssh://$REMOTE_USER@$HOST:$PORT
 export GIT_AUTHOR_EMAIL='srcd@example.invalid'
 export GIT_AUTHOR_NAME='Sauce Daemon'
 export GIT_AUTHOR_DATE=1654519284
+export TZ=Europe/Stockholm
 export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
 export GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE"
