@@ -76,12 +76,14 @@ _tap() {
 }
 
 _ok_ret() {
-	case $? in
+	local r=$?
+	case $r in
 		0) _tap ok "$3" ;;
 		*) echo "Got:      $1"
 		   echo "Expected: $2"
 		   _tap 'not ok' "$3"
 	esac
+	return $r
 }
 
 _wait_until_started() {

@@ -19,14 +19,14 @@ for PROTO_VERSION in 0 1 2; do
 
 	is "$(git -C test$v rev-parse HEAD)" \
 	   "399a62bb6d769a769f5ebc6007c8e0db80a251c4" \
-	   "test$v.git starts at expected commit"
+	   "test$v.git starts at expected commit (399a62b)"
 
 	# Test that we can push commits with no new tree/blob objects
 	git -C test$v commit -q --allow-empty --message 'nochange'
 
 	is "$(git -C test$v rev-parse HEAD)" \
 	   "1efefe3f4b4018e4f053a6d47a238537f5b1bc81" \
-	   "test$v.git locally updated to 1efefe3"
+	   "test$v.git locally updated to 1efefe3" || git -C test$v log --format=fuller
 
 	git -C test$v push origin HEAD:refs/heads/master
 	is $r 0 "pushing test$v.git succeeds"
