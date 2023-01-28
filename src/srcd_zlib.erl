@@ -66,15 +66,17 @@ inflate_reader(Z, {Reader, Pos}, InProc, InUnproc, Out, ReadCount0, N) ->
     {'EXIT', Err} -> ?LOG_NOTICE("unexpected exit inflate: ~p", [Err]),
                      {ok, ReadCount0, Out, InProc ++ NewBuf};
     [] ->
-      %?LOG_NOTICE("Got nothing back! Maybe I'm done?"),
       case catch zlib:'inflateEnd'(Z) of
         {'EXIT', {data_error, _}} ->
           inflate_reader({Reader, NewPos}, InProc ++ NewBuf);
         ok -> {ok, ReadCount, Out, InProc ++ NewBuf}
       end;
     [New] ->
-      inflate_reader(Z, {Reader, NewPos}, InProc ++ NewBuf, [],
-                     Out ++ binary_to_list(New), ReadCount, N + 1)
+      case catch zlib:'inflateEnd'(Z) of
+        {'EXIT', {data_error, _}} ->
+          inflate_reader({Reader, NewPos}, InProc ++ NewBuf);
+        ok -> {ok, ReadCount, Out ++ binary_to_list(New), InProc ++ NewBuf}
+      end
   end.
 
 -ifdef(TEST).
