@@ -102,11 +102,36 @@ apply_ref_cmds(Refs, Objects, [Cmd | Cmds]) ->
   end.
 
 apply_ref_cmd(Refs, Objects, {update, Ref, {Old, New}}) ->
-  % TODO: verify that Ref exists, and that it points to Old before our change
-  {ok, lists:keyreplace(Ref, 1, Refs, {Ref, New})};
+  RefExists = lists:keymember(Ref, 1, Refs),
+  NewObjExists = maps:is_key(New, Objects),
+  OldDest = case lists:keyfind(Ref, 1, Refs) of
+    false -> invalid;
+    {Ref, Target} -> Target
+  end,
+
+  % TODO: Verify that there's a parent chain from New to Old.
+  % TODO: Verify that the refs are pointing to commits?
+
+  case {RefExists, NewObjExists, OldDest} of
+    {true, true, Old} -> {ok, lists:keyreplace(Ref, 1, Refs, {Ref, New})};
+    {false, _, _} -> {error, unknown_ref};
+    {_, false, _} -> {error, unknown_object};
+    {_, _, _} -> {error, do_a_git_fetch}
+  end;
 apply_ref_cmd(Refs, Objects, {create, Ref, New}) ->
-  {ok, lists:keysort(1, lists:keymerge(1, [{Ref, New}], Refs))};
+  RefExists = lists:keymember(Ref, 1, Refs),
+  NewObjExists = maps:is_key(New, Objects),
+
+  case {RefExists, NewObjExists} of
+    {true, true} -> {ok, lists:keysort(1, lists:keymerge(1, [{Ref, New}], Refs))};
+    {false, _} -> {error, unknown_ref};
+    {_, false} -> {error, unknown_object};
+    {_, _} -> {error, do_a_git_fetch}
+  end;
 apply_ref_cmd(Refs, _, {delete, Ref}) ->
+  % TODO: only failure mode i can think of is deleting an existing ref
+  %       without permissions to do so. But i haven't started looking
+  %       at permissions at all yet...
   {ok, lists:keydelete(Ref, 1, Refs)}.
 
 add_objects(Map, []) -> Map;
