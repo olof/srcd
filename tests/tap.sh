@@ -60,7 +60,7 @@ _cleanup() {
 		[ -z "$EXIT_REASON" ] || echo "ERROR: $EXIT_REASON" >&2
 	fi
 
-	[ -d "$test_dir" ] && rm -rf "$test_dir"
+	[ "$NO_DELETE_TMP" = y ] || ! [ -d "$test_dir" ] || rm -rf "$test_dir"
 }
 
 _tap() {
