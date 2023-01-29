@@ -17,8 +17,6 @@ export TZ=Europe/Stockholm
 export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
 export GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE"
-export GIT_TRACE=$PWD/git.log
-export GIT_TRACE_PACKET=$PWD/git.packet.log
 
 git() {
 #	printf "executing: %s -c protocol.version=%s %s" >&2 \
