@@ -66,9 +66,11 @@ handle_call({exists, Id}, _, #?STATE{objects=Objs} = State) ->
 handle_call({write, Cmds, #pack{objects=NewObjs}}, _,
             #?STATE{fs=Fs, refs=Refs, objects=Objects} = State) ->
   NewObjects = add_objects(Objects, NewObjs),
-  NewRefs = apply_ref_cmds(Refs, Objects, Cmds),
-  srcd_persistence:dump(Fs, Cmds, NewObjs),
-  {reply, ok, State#?STATE{refs=NewRefs, objects=NewObjects}};
+  case apply_ref_cmds(Refs, Objects, Cmds) of
+    {ok, NewRefs} ->
+      srcd_persistence:dump(Fs, Cmds, NewObjs),
+      {reply, ok, State#?STATE{refs=NewRefs, objects=NewObjects}}
+  end;
 handle_call(info, _, #?STATE{refs=Refs, objects=Objects} = State) ->
   {reply, [
     {refs, Refs},
@@ -77,17 +79,20 @@ handle_call(info, _, #?STATE{refs=Refs, objects=Objects} = State) ->
 
 handle_cast(_, State) -> {noreply, State}.
 
-apply_ref_cmds(Refs, Objects, []) -> Refs;
+apply_ref_cmds(Refs, Objects, []) -> {ok, Refs};
 apply_ref_cmds(Refs, Objects, [Cmd | Cmds]) ->
-  apply_ref_cmds(apply_ref_cmd(Refs, Objects, Cmd), Objects, Cmds).
+  case apply_ref_cmd(Refs, Objects, Cmd) of
+    {ok, NewRefs} -> apply_ref_cmds(NewRefs, Objects, Cmds);
+    {error, Error} -> {error, Error}
+  end.
 
 apply_ref_cmd(Refs, Objects, {update, Ref, {Old, New}}) ->
   % TODO: verify that Ref exists, and that it points to Old before our change
-  lists:keyreplace(Ref, 1, Refs, {Ref, New});
+  {ok, lists:keyreplace(Ref, 1, Refs, {Ref, New})};
 apply_ref_cmd(Refs, Objects, {create, Ref, New}) ->
-  lists:keysort(1, lists:keymerge(1, [{Ref, New}], Refs));
+  {ok, lists:keysort(1, lists:keymerge(1, [{Ref, New}], Refs))};
 apply_ref_cmd(Refs, _, {delete, Ref}) ->
-  lists:keydelete(Ref, 1, Refs).
+  {ok, lists:keydelete(Ref, 1, Refs)}.
 
 add_objects(Map, []) -> Map;
 add_objects(Map, [#object{id=Id, data=Obj} | Objects]) ->
