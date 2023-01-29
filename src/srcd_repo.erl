@@ -46,7 +46,7 @@ start_link(Repo, Profile, Refs, Objects) ->
 init([Repo]) -> {ok, #?STATE{name=Repo, fs=fs_name(Repo)}};
 init([Repo, Profile, Refs0, Objects]) ->
   Refs = lists:keysort(1, Refs0),
-  {ok, Map} = build_index(Refs, Objects),
+  {ok, Map} = build_object_index(Objects),
   {ok, #?STATE{
     name=Repo,
     profile=Profile,
@@ -55,10 +55,10 @@ init([Repo, Profile, Refs0, Objects]) ->
     objects=Map
   }}.
 
-build_index(Refs, Objects) -> build_index(Refs, Objects, #{}).
-build_index(Refs, [], Res) -> {ok, Res};
-build_index(Refs, [#object{id=Id, data=Data} | Objects], Res) ->
-  build_index(Refs, Objects, Res#{Id => Data}).
+build_object_index(Objects) -> build_object_index(Objects, #{}).
+build_object_index([], Res) -> {ok, Res};
+build_object_index([#object{id=Id, data=Data} | Objects], Res) ->
+  build_object_index(Objects, Res#{Id => Data}).
 
 handle_call(head, _, #?STATE{head=Ref} = State) ->
   {reply, {ok, Ref}, State};
