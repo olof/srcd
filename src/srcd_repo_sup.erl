@@ -6,7 +6,7 @@
 
 -export([start_link/0]).
 -export([init/1]).
--export([add_child/1]).
+-export([add_child/1, add_child/2]).
 
 -include_lib("kernel/include/logger.hrl").
 -include("srcd_object.hrl").
@@ -14,11 +14,11 @@
 start_link() ->
     supervisor:start_link({global, ?MODULE}, ?MODULE, []).
 
-mfa(Name, Refs, Objects) ->
-  {srcd_repo, start_link, [Name, Refs, Objects]}.
+mfa(Name, Profile, Refs, Objects) ->
+  {srcd_repo, start_link, [Name, Profile, Refs, Objects]}.
 
-childspec(Name, Refs, Objects) ->
-  #{id => Name, start => mfa(Name, Refs, Objects)}.
+childspec(Name, Profile, Refs, Objects) ->
+  #{id => Name, start => mfa(Name, Profile, Refs, Objects)}.
 
 initial_children() ->
   {ok, Repos} = srcd_persistence:list(),
@@ -27,7 +27,8 @@ initial_children([], Res) -> lists:reverse(Res);
 initial_children([Repo | Repos], Res) ->
   {ok, Meta, Refs, Objects} = srcd_persistence:load(Repo),
   Name = proplists:get_value(name, Meta),
-  initial_children(Repos, [childspec(Name, Refs, Objects) | Res]).
+  Profile = proplists:get_value(profile, Meta),
+  initial_children(Repos, [childspec(Name, Profile, Refs, Objects) | Res]).
 
 init([]) ->
   {ok, {
@@ -37,6 +38,8 @@ init([]) ->
     initial_children()
   }}.
 
-add_child(Name) -> add_child(Name, [], []).
-add_child(Name, Refs, Objects) ->
-  supervisor:start_child({global, ?MODULE}, childspec(Name, Refs, Objects)).
+add_child(Name) -> add_child(Name, repo).
+add_child(Name, Profile) -> add_child(Name, Profile, [], []).
+add_child(Name, Profile, Refs, Objects) ->
+  supervisor:start_child({global, ?MODULE},
+                         childspec(Name, Profile, Refs, Objects)).

@@ -9,7 +9,8 @@
 -export([init/0, init/2, load/1, dump/3, list/0]).
 
 init() -> init("/tmp/test.pack", "/test").
-init(Packfile, Name) ->
+init(Packfile, Name) -> init(Packfile, Name, repo).
+init(Packfile, Name, Profile) ->
   % Make repo files don't exist first?
 
   ok = write_meta(Packfile, Name),
@@ -18,6 +19,9 @@ init(Packfile, Name) ->
   {ok, EmptyPack} = srcd_packfile:build(Name, []),
   ok = io:put_chars(Fh, EmptyPack),
   ok = file:close(Fh),
+
+  {ok, FhProfile} = open(profile, Packfile, [write]),
+  ok = io:put_chars(Fh, atom_to_list(Profile)),
 
   {ok, FhRefs} = open(refs, Packfile, [write]),
   % Good job!
@@ -33,7 +37,8 @@ load(Packfile) ->
   {ok, Meta} = read_meta(Packfile),
   {ok, Refs} = read_refs(Packfile),
   {ok, Objects} = read_objects(Packfile),
-  {ok, Meta, Refs, Objects}.
+  {ok, Profile} = read_profile(Packfile),
+  {ok, [{profile, Profile}|Meta], Refs, Objects}.
 
 dump(Packfile, Refs, Objects) ->
   % TODO make the writes atomic (i.e. tmpfile and rename)
@@ -51,6 +56,7 @@ list() ->
 open(Type, Packfile)       -> open(Type, Packfile, [read]).
 open(pack, Packfile, Opts) -> file:open(Packfile ++ ".pack", Opts);
 open(refs, Packfile, Opts) -> file:open(Packfile ++ ".pack.refs", Opts);
+open(profile, Packfile, Opts) -> file:open(Packfile ++ ".pack.profile", Opts);
 open(meta, Packfile, Opts) -> file:open(Packfile ++ ".pack.meta", Opts).
 
 read_meta(Packfile) ->
@@ -147,6 +153,16 @@ hash_packfile(Fh, D) ->
   case file:read(Fh, 4096) of
     eof -> D;
     {ok, X} -> hash_packfile(Fh, crypto:hash_update(D, X))
+  end.
+
+read_profile(Packfile) ->
+  case open(profile, Packfile) of
+    {ok, Fh} ->
+      Profile = list_to_existing_atom(string:trim(io:get_line(Fh, ""))),
+      ok = file:close(Fh),
+      {ok, Profile};
+    _ ->
+      {ok, repo}
   end.
 
 read_objects(Packfile) ->

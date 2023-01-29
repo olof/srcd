@@ -2,14 +2,21 @@
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 -module(srcd_repo).
 -behavior(gen_server).
--export([start_link/1, start_link/3, create/1, init/1,
+-export([start_link/1, start_link/4, create/1, create/2, init/1,
          handle_call/3, handle_cast/2]).
 -export([exists/1, exists/2, head/1, head/2, refs/1, object/2,
          default_branch/1, write/3]).
 -export([info/1]).
 
 -define(STATE, ?MODULE).
--record(?STATE, {name, fs, head="refs/heads/master", refs=[], objects=#{}}).
+-record(?STATE, {
+  name,
+  fs,
+  profile=repo,
+  head="refs/heads/master",
+  refs=[],
+  objects=#{}
+}).
 -define(gproc_name(Repo), {via, gproc, {n, l, {?MODULE, Repo}}}).
 
 -include("srcd_object.hrl").
@@ -22,23 +29,31 @@ fs_name(Repo) ->
     undefined -> undefined
   end.
 
-create(Repo) ->
-  ?LOG_NOTICE("Creating new repo ~p", [Repo]),
+create(Repo) -> create(Repo, repo).
+create(Repo, Profile) ->
+  ?LOG_NOTICE("Creating new repo ~p with profile ~p", [Repo, Profile]),
   srcd_persistence:init(fs_name(Repo), Repo),
-  {ok, _Pid} = srcd_repo_sup:add_child(Repo),
+  {ok, _Pid} = srcd_repo_sup:add_child(Repo, Profile),
   ok.
 
-start_link(Repo)                -> gen_server:start_link(?gproc_name(Repo),
-                                                         ?MODULE, [Repo], []).
-start_link(Repo, Refs, Objects) -> gen_server:start_link(?gproc_name(Repo),
-                                                         ?MODULE,
-                                                         [Repo, Refs, Objects],
-                                                         []).
-init([Repo])                -> {ok, #?STATE{name=Repo, fs=fs_name(Repo)}};
-init([Repo, Refs0, Objects]) ->
-   Refs = lists:keysort(1, Refs0),
-   {ok, Map} = build_index(Refs, Objects),
-   {ok, #?STATE{name=Repo, fs=fs_name(Repo), refs=Refs, objects=Map}}.
+start_link(Repo) ->
+  gen_server:start_link(?gproc_name(Repo), ?MODULE,
+                        [Repo], []).
+start_link(Repo, Profile, Refs, Objects) ->
+  gen_server:start_link(?gproc_name(Repo), ?MODULE,
+                        [Repo, Profile, Refs, Objects], []).
+
+init([Repo]) -> {ok, #?STATE{name=Repo, fs=fs_name(Repo)}};
+init([Repo, Profile, Refs0, Objects]) ->
+  Refs = lists:keysort(1, Refs0),
+  {ok, Map} = build_index(Refs, Objects),
+  {ok, #?STATE{
+    name=Repo,
+    profile=Profile,
+    fs=fs_name(Repo),
+    refs=Refs,
+    objects=Map
+  }}.
 
 build_index(Refs, Objects) -> build_index(Refs, Objects, #{}).
 build_index(Refs, [], Res) -> {ok, Res};
