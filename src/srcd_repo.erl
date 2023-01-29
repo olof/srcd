@@ -123,7 +123,8 @@ apply_ref_cmd(Refs, Objects, {create, Ref, New}) ->
   NewObjExists = maps:is_key(New, Objects),
 
   case {RefExists, NewObjExists} of
-    {true, true} -> {ok, lists:keysort(1, lists:keymerge(1, [{Ref, New}], Refs))};
+    {true, true} ->
+      {ok, lists:keysort(1, lists:keymerge(1, [{Ref, New}], Refs))};
     {false, _} -> {error, unknown_ref};
     {_, false} -> {error, unknown_object};
     {_, _} -> {error, do_a_git_fetch}

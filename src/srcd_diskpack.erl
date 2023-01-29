@@ -38,7 +38,7 @@ load(Packfile) ->
   {ok, Refs} = read_refs(Packfile),
   {ok, Objects} = read_objects(Packfile),
   {ok, Profile} = read_profile(Packfile),
-  {ok, [{profile, Profile}|Meta], Refs, Objects}.
+  {ok, [{profile, Profile} | Meta], Refs, Objects}.
 
 dump(Packfile, Refs, Objects) ->
   % TODO make the writes atomic (i.e. tmpfile and rename)
