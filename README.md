@@ -120,41 +120,39 @@ conflict. This is why I have vendored the whole ssh app.
 
 Hacking
 -------
+First, by a release:
 
-Currently, my workflow is just to use
+    $ rebar3 release
 
-    $ HOST=localhost PORT=22222 rebar3 shell
+(Release is just an erlang term for a built system artifact, and
+has nothing to do with the project release process.)
+
+My development workflow is currently to load packfiles placed in
+"repos" directory, in the top level repo dir. This will make srcd
+initialize repos on startup. A repo is defined using three files:
+a packfile, a reference list and a metadata file. You can copy
+repos from the tests/fixtures directories to get started.
+
+Once that's done, you can start srcd using the wrapper script:
+
+    $ bin/srcd
 
 This will start an ssh daemon on localhost port 22222 that will
 accept any ssh key and the "git" user. (Yes, this is one of the
 things that makes it **not production ready**.)
 
-It serves three sample repos, defined in `srcd_sup.erl`:
+Assuming you've set up a repo as described above with the name
+"repo.git", you should be able to clone it using
 
- * `/empty.git`: a repo without any objects at all
- * `/no-content.git`: a repo with only commits and empty trees,
-                      no blobs
- * `/content.git`: a repo with commits, trees and blobs
+    $ git clone ssh://git@localhost:22222/repo.git
 
-You can thus clone one of these using something like
-
-    git clone ssh://git@localhost:22222/content.git
-
-Note that you must present a ssh key, even though it doesn't
+Note that you must present an ssh key, even though it doesn't
 matter which one.
 
 Git objects are stored in memory (a map, in `srcd_repo`) as
-records. Have a look at `srcd_sup` for how to define repos and
-objects. The records are defined in `srcd_objects.hrl`.  In its
-current state, since we don't support push operations, the only
-way to define new objects it to carefully handcraft them - or,
-easier: generate them using git and carefully copy the values
-(including any trailing newlines of blob data).
-
-A trivial blob object could be defined (for ingestion by
-`srcd_repo`) as:
-
-    {"1269488f7fb1f4b56a8c0e5eb48cecbfadfa9219", #blob{data="data\n"}}
+records, as well as written to disk. Have a look at `srcd_sup`
+for how to define repos and objects. The records are defined in
+`srcd_objects.hrl`.
 
 ### Git tips
 
