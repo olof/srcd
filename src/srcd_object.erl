@@ -149,9 +149,6 @@ parse(Object) ->
 parse(blob, Object) ->
   {ok, #blob{data=Object}};
 parse(tree, Object) ->
-  % TODO: How are multiple entries encoded? \n sep?
-  % REPLY: Nope. Just concatted.
-  %        [ <mode*> 32 <name*> 0 <hash{20}> ]*
   {ok, #tree{items=parse_tree_nodes(Object)}};
 parse(commit, Object) ->
   {Head, Msg} = parse_commit(Object),
