@@ -1,0 +1,37 @@
+% ex:ts=2:sw=2:sts=2:et:ft=erlang
+% -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
+
+-include_lib("eunit/include/eunit.hrl").
+
+-define(copy(Ofs, Size), {copy, {Ofs, Size}}).
+-define(add(Data), {add, Data}).
+
+execute_test_() ->
+  [
+    ?_assertEqual({ok, Expected}, execute(Obj, Base, Instructions)) ||
+      {{Obj, Base, Instructions}, Expected} <- [
+        {{"", "hello world", [?copy(0, 0)]}, ""},
+        {{"", "hello world", [?copy(0, 5)]}, "hello"},
+        {{"hell", "hello world", [?copy(5, 6)]}, "hell world"},
+        {{"", "hello world", [?copy(0, 5), ?copy(6, 5)]}, "helloworld"},
+        {{"", "hello world", [?copy(0, 2), ?add("xadecimal")]}, "hexadecimal"},
+        {{"", "hello world", [?copy(0, 5), ?add("."), ?copy(6, 5), ?add("!")]},
+         "hello.world!"}
+      ]
+  ].
+
+ref_delta_apply_test_() ->
+  [
+    ?_assertEqual({ok, Expected}, ref_delta_apply(Obj, Base, Instruction)) ||
+      {{Obj, Base, Instruction}, Expected} <- [
+        {{"", "hello world", ?copy(0, 0)}, ""},
+        {{"foo", "hello world", ?copy(0, 0)}, "foo"},
+        {{"", "hello world", ?add("")}, ""},
+        {{"foo", "hello world", ?add("")}, "foo"},
+        {{"", "hello world", ?copy(0, 5)}, "hello"},
+        {{"", "hello world", ?copy(6, 5)}, "world"},
+        {{"hell", "hello world", ?copy(5, 6)}, "hell world"},
+        {{"he", "hello world", ?add("xadecimal")}, "hexadecimal"}
+      ]
+    % TODO: What to do if if offset + size > len(base)?
+  ].

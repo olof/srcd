@@ -9,4 +9,5 @@
 -record(tree, {items}).
 -record(tree_node, {mode, name, object}).
 -record(blob, {data}).
+-record(ref_delta, {ref, size_base, size_target, instructions=[]}).
 -record(pack, {version, count, objects, hash}).

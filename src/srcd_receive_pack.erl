@@ -3,7 +3,7 @@
 -module(srcd_receive_pack).
 -behavior(srcd_cmd).
 -export([callback_mode/0, init/2]).
--export([advertise/1, wait_for_input/1, read_packfile/1,
+-export([advertise/1, wait_for_input/1, read_packfile/1, resolve_packfile/1,
          verify_packfile/1, process_cmds/1, process_lines/1]).
 -include_lib("kernel/include/logger.hrl").
 
@@ -60,7 +60,11 @@ process_lines({#?MODULE{repo=Repo} = Data, Lines, Caps}) ->
 
 read_packfile({Data, Cmds}) ->
   {ok, Packfile} = srcd_packfile:read(),
-  {next_state, verify_packfile, {Data, Cmds, Packfile}}.
+  {next_state, resolve_packfile, {Data, Cmds, Packfile}}.
+
+resolve_packfile({#?MODULE{repo=Repo} = Data, Cmds, Packfile}) ->
+  {ok, Resolved} = srcd_delta_obj:resolve(Repo, Packfile),
+  {next_state, verify_packfile, {Data, Cmds, Resolved}}.
 
 verify_packfile({#?MODULE{repo=Repo} = Data, Cmds, Packfile}) ->
   Oids = srcd_packfile:object_ids(Packfile),
