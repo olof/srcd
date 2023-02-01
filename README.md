@@ -120,7 +120,7 @@ conflict. This is why I have vendored the whole ssh app.
 
 Hacking
 -------
-First, by a release:
+First, build a release:
 
     $ rebar3 release
 
