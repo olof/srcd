@@ -177,3 +177,8 @@ tree_single_blob_test_() ->
     ?_assertEqual({tree, "100644 test\0" ++ H},
                   encode(#tree{items=Entries}))
   ].
+
+parse_delta_size_test_() ->
+  [
+    ?_assertEqual({976, [255]}, parse_delta_size([208, 7, 255]))
+  ].

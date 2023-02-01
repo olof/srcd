@@ -55,8 +55,25 @@ read(Fh, Digest1) ->
   % What does git do? It relies on memory pointers to buffers where both
   % it and zlib can do its work.
   case Type of
-    ref_delta -> {error, ref_delta_not_implemented};
-    ofs_delta -> {error, ofs_delta_not_implemented};
+    ref_delta ->
+      % * base object name
+      % * compressed delta data
+      {ok, BaseObjId, D} = read_object_id(Fh, Digest0),
+      ?LOG_NOTICE("ref_delta base obj: ~p", [
+        srcd_utils:bytes_to_hex(BaseObjId)
+      ]),
+      {ok, {SizeBase, SizeTarget, Instructions}, D2} = read_delta_data(Fh, D),
+      {ok, #ref_delta{
+        ref=srcd_utils:bytes_to_hex(BaseObjId),
+        size_base=SizeBase,
+        size_target=SizeTarget,
+        instructions=Instructions
+      }, D2};
+    ofs_delta ->
+      % * a negative relative offset from the delta object's position in the
+      %   pack
+      % * compressed delta data
+      {error, ofs_delta_not_implemented};
     _ ->
       {ok, _, Object, Compressed} = srcd_zlib:inflate(Fh),
       Length = length(Object),
@@ -67,6 +84,83 @@ read(Fh, Digest1) ->
       ?LOG_NOTICE("object parsed: hash: ~p", [srcd_utils:bin_to_hex(H)]),
       {ok, #object{data=Parsed, id=srcd_utils:bin_to_hex(H)}, Digest}
   end.
+
+read_delta_data(Fh, Digest) ->
+  {ok, _, Object, Compressed} = srcd_zlib:inflate(Fh),
+  Digest0 = crypto:hash_update(Digest, Compressed),
+
+  ?LOG_NOTICE("REF DELTA BYTES: ~p", [Object]),
+
+  {SizeBase, Tail1} = parse_delta_size(Object),
+  {SizeTarget, Tail} = parse_delta_size(Tail1),
+
+  ?LOG_NOTICE("Base size: ~p; Target size: ~p", [SizeBase, SizeTarget]),
+  {ok, Instructions} = parse_delta_data(Tail, SizeTarget, []),
+  {ok, {SizeBase, SizeTarget, Instructions}, Digest0}.
+
+parse_delta_data(_Tail, 0, Instructions) ->
+  % TODO: _Tail should be empty - what if it isn't?
+  {ok, lists:reverse(Instructions)};
+parse_delta_data(Data, BytesLeft, Instructions) when BytesLeft > 0 ->
+  {Instruction, Size, Tail} = parse_delta_instruction(Data),
+  ?LOG_NOTICE("delta copy remaining bytes: ~p", [BytesLeft - Size]),
+  parse_delta_data(Tail, BytesLeft - Size, [Instruction | Instructions]).
+
+parse_delta_instruction([Byte | Object]) ->
+  case Byte band 128 of
+    128 ->  % copy from base object
+            % (Byte band 127) contains a seven bit mask;
+            % offset1 offset2 offset3 offset4 size1 size2 size3
+            {{Offset, Size}, Tail} = parse_base_copy_instr(Object,
+                                                           Byte band 127),
+            ?LOG_NOTICE("delta copy command, ~p", [{Offset, Size}]),
+            {{copy, {Offset, Size}}, Size, Tail};
+
+    0 ->    % add verbatim data
+            % (Byte contains size in bytes)
+            % TODO: Byte == 0 is reserved, and should be rejected
+            {Data, Tail} = lists:split(Byte, Object),
+            ?LOG_NOTICE("delta add command (size ~p), ~p", [Byte, Data]),
+            {{add, Data}, Byte, Tail}
+  end.
+
+combine_intlist(Ints) ->
+  Multipliers = lists:reverse(lists:seq(0, length(Ints) - 1)),
+  Sum = lists:sum([X bsl N * 8 || {X, N} <- lists:zip(Ints, Multipliers)]),
+  ?LOG_NOTICE("INTS = ~p * ~p -> ~p", [Ints, Multipliers, Sum]),
+  Sum.
+
+parse_base_copy_instr(Object, 0) ->
+  {{0, 0}, Object};
+parse_base_copy_instr(Object, Mask) ->
+  read_base_copy_instr(Object, Mask, 1, {[], []}).
+
+read_base_copy_instr(Object, Mask, 128, {Offsets, Sizes}) ->
+  ?LOG_NOTICE("OFS/SIZ LISTS: ~p    ~p", [Offsets, Sizes]),
+  {{combine_intlist(Offsets), combine_intlist(Sizes)}, Object};
+read_base_copy_instr(Object, Mask, N, {Offsets, Sizes}) ->
+  {Byte, Tail} = case Mask band N of
+    0 -> {0, Object};   % Field omitted - defaults to 0
+    _ -> [B | T] = Object, {B, T}
+  end,
+  read_base_copy_instr(Tail, Mask, N * 2, case N > 8 of
+    false -> {[Byte | Offsets], Sizes};
+    true -> {Offsets, [Byte | Sizes]}
+  end).
+
+parse_delta_size(Object) -> parse_delta_size(Object, 0, 0).
+parse_delta_size([Byte | Tail], Sum, Exp) ->
+  ?LOG_NOTICE("PARSE_DELTA_SIZE: ~p", [Byte]),
+  case Byte band 128 of
+    128 -> parse_delta_size(Tail, (Byte band 127 bsl Exp) + Sum, Exp + 7);
+    _ -> {(Byte bsl Exp) + Sum, Tail}
+  end.
+
+read_object_id(Fh, Digest) ->
+  % FIXME: assumes sha1
+  % FIXME: handle unexpected eof
+  {ObjId, D} = srcd_utils:read(Fh, 20, Digest),
+  {ok, ObjId, D}.
 
 read_object_header(Fh, Digest) ->
   {[Byte], D} = srcd_utils:read(Fh, 1, Digest),
