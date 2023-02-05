@@ -101,6 +101,7 @@ packfile_header_test_() ->
     ?_assertEqual({error, badarg}, build_header(4294967296)),
     ?_assertEqual({error, badarg}, build_header(-1))
   ].
+
 -endif.
 
 objects(Repo, Ids) -> objects(Repo, Ids, #{}, []).
