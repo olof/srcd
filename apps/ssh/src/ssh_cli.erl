@@ -745,29 +745,12 @@ exec_in_self_group(ConnectionHandler, ChannelId, WantReply, State, Fun) ->
         fun() ->
                 spawn(
                   fun() ->
-                          case try
-                                   ssh_connection:reply_request(ConnectionHandler, WantReply, success, ChannelId),
-                                   Fun()
-                               of
-                                   {ok, Result} ->
-                                       {ok, Result};
-                                   {error, Error} ->
-                                       ?LOG_NOTICE("SSH Error: exec returned error: ~p", [Error]),
-                                       {error, Error};
-                                   X ->
-                                       ?LOG_NOTICE("SSH Error: bad exec return: ~p", [X]),
-                                       {error, "Bad exec fun in server. Invalid return value: "++t2str(X)}
-                               catch error:Err ->
-                                       ?LOG_NOTICE("SSH Error: exception ~p", [Err]),
-                                       {error,Err};
-                                     Cls:Exp ->
-                                       ?LOG_NOTICE("SSH Error: exception ~p:~p", [Cls, Exp]),
-                                       {error,{Cls,Exp}}
-                               end
-                          of
-                              {ok,Str} ->
+                          ssh_connection:reply_request(ConnectionHandler, WantReply, success, ChannelId),
+                          case Fun() of
+                              {ok, Str} ->
                                   write_chars(ConnectionHandler, ChannelId, t2str(Str));
                               {error, Str} ->
+                                  ?LOG_NOTICE("SSH Error: ssh session error: ~p", [Str]),
                                   write_chars(ConnectionHandler, ChannelId, 1, "**Error** "++t2str(Str)),
                                   exit({exit_status, ?EXEC_ERROR_STATUS})
                           end
