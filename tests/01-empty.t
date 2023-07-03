@@ -9,6 +9,6 @@ start
 output=$(git clone "$BASE_URL/test.git" 2>&1)
 
 isnt $? 0 "cloning non-existing repo fails"
-contains "$output" "no_such_repo" "error from sshd should mention reason"
+contains "$output" "No such repo" "error from sshd should mention reason"
 
 :

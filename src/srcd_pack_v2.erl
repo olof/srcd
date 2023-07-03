@@ -65,8 +65,8 @@ ls_refs({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
       ?LOG_NOTICE("Reflines = ~p", [Reflines]),
       {ok, Adv} = srcd_pack:build_pkt(Reflines ++ [flush]),
       {next_state, read_command, Adv, Data};
-    {error, enoent} ->
-      {error, "No such repo"}
+    {error, no_such_repo} ->
+      {error, "No such repo~n"}
   end.
 
 fetch({#pack_repo{repo=Repo} = Data, Caps, Args}) ->

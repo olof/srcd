@@ -154,7 +154,7 @@ advertise(#pack_repo{repo=Repo, version=Version, opts=Opts} = Data) ->
         true -> {ok, Adv};
         _ -> {next_state, wait_for_input, Adv, Data}
       end;
-    {error, enoent} ->
+    {error, no_such_repo} ->
       {error, "No such repo\n"}
   end.
 
