@@ -60,7 +60,10 @@ _cleanup() {
 		[ -z "$EXIT_REASON" ] || echo "ERROR: $EXIT_REASON" >&2
 	fi
 
-	[ "$NO_DELETE_TMP" = y ] || ! [ -d "$test_dir" ] || rm -rf "$test_dir"
+	case $NO_DELETE_TMP in
+		y) echo "leaving workdir $test_dir intact" >&2 ;;
+		*) ! [ -d "$test_dir" ] || rm -rf "$test_dir"
+	esac
 }
 
 _tap() {
