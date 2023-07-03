@@ -3,11 +3,6 @@ srcd
 
 **(Work in progress)** srcd: a git compatible ssh daemon.
 
-Also note: I *will* rebase the history before making it public.
-Things like removing "changes" commits and removing my personal
-information from sample repos :). Oh, yeah, I aim to make it
-public and open source.
-
 This repo does not represent a usable git daemon yet. But some
 things work:
 
