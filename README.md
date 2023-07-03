@@ -28,8 +28,8 @@ Obvious missing things:
    * just act as a git proxy, persist it in a remote repo?
  * Authentication (ssh key manager / tie in to SSO)
  * Required object types:
-   * Tags ([#3](https://github.com/olof/srcd/issues/3)
-   * `ref_delta` objects ([#2](https://github.com/olof/srcd/issues/2)
+   * Tags ([#3](https://github.com/olof/srcd/issues/3))
+   * `ref_delta` objects ([#2](https://github.com/olof/srcd/issues/2))
  * Optional protocol [capabilities][git-caps]:
    * `ofs_delta` objects
    * Thin packs
