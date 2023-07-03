@@ -15,15 +15,15 @@ for PROTO_VERSION in 0 1 2; do
 	v=$PROTO_VERSION
 	output=$(git ls-remote "$BASE_URL/does-not-exist.git" 2>&1)
 
-	isnt $? 0 "ls-remote non-existing repo fails, pack v$v"
-	contains "$output" "no_such_repo" \
-	         "error from ls-remote mentions reason, pack v$v"
+	isnt $r 0 "ls-remote non-existing repo fails, pack v$v" || exit 1
+	contains "$output" "No such repo" \
+	         "error from ls-remote mentions reason, pack v$v" || exit 1
 
 	output=$(git clone "$BASE_URL/does-not-exist.git" test-$v.git 2>&1)
 
-	isnt $? 0 "cloning non-existing repo fails, pack v$v"
-	contains "$output" "no_such_repo" \
-	         "error from clone mentions reason, pack v$v"
+	isnt $? 0 "cloning non-existing repo fails, pack v$v" || exit 1
+	contains "$output" "No such repo" \
+	         "error from clone mentions reason, pack v$v" || exit 1
 done
 PROTO_VERSION=
 
