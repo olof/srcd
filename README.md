@@ -28,8 +28,8 @@ Obvious missing things:
    * just act as a git proxy, persist it in a remote repo?
  * Authentication (ssh key manager / tie in to SSO)
  * Required object types:
-   * Tags
-   * `ref_delta` objects
+   * Tags ([#3](https://github.com/olof/srcd/issues/3)
+   * `ref_delta` objects ([#2](https://github.com/olof/srcd/issues/2)
  * Optional protocol [capabilities][git-caps]:
    * `ofs_delta` objects
    * Thin packs
@@ -46,7 +46,7 @@ in a both server and client role, and using that to build any git
 service would be easy.
 
 When it comes to git and erlang, we have also github's own
-[egtid][egitd], which even saw production use for a short while
+[egitd][egitd], which even saw production use for a short while
 if I understand it correctly. But it only serves git:// (and as
 such is read only). And when I studied it, I realized it only
 execs git (the tool). Awww, man, erlang as a cgi shell...
@@ -69,7 +69,7 @@ these builds (and more, like updating DNS zonedata) on push.
 These things (except for hooks) may not necessarily be part of
 this repo directly.
 
-[erlgitd]: https://github.com/mojombo/egitd
+[egitd]: https://github.com/mojombo/egitd
 
 ### ssh
 
