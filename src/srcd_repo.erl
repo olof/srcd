@@ -81,11 +81,9 @@ handle_call({exists, Id}, _, #?STATE{objects=Objs} = State) ->
 handle_call({write, Cmds, #pack{objects=NewObjs}}, _,
             #?STATE{fs=Fs, refs=Refs, objects=Objects} = State) ->
   NewObjects = add_objects(Objects, NewObjs),
-  case apply_ref_cmds(Refs, NewObjects, Cmds) of
-    {ok, NewRefs} ->
-      srcd_persistence:dump(Fs, Cmds, NewObjs),
-      {reply, ok, State#?STATE{refs=NewRefs, objects=NewObjects}}
-  end;
+  {ok, NewRefs} = apply_ref_cmds(Refs, NewObjects, Cmds),
+  srcd_persistence:dump(Fs, Cmds, NewObjs),
+  {reply, ok, State#?STATE{refs=NewRefs, objects=NewObjects}};
 handle_call(info, _, #?STATE{refs=Refs, objects=Objects} = State) ->
   {reply, [
     {refs, Refs},
