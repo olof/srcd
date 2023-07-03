@@ -7,7 +7,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 -ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
+-include("tests/packfile.trl").
 -endif.
 
 -define(STATE_FUN(F), fun (State) -> F(State) end).
@@ -82,27 +82,6 @@ build_header(_) -> {error, badarg}.
 append_hash(Packfile) ->
   Hash = crypto:hash(sha, list_to_binary(Packfile)),
   Packfile ++ binary_to_list(Hash).
-
--ifdef(TEST).
-
-packfile_header_test_() ->
-  Prefix = [$P, $A, $C, $K, 0, 0, 0, 2], % PackVersion = 2
-  [
-    ?_assertEqual({ok, Prefix ++ [0, 0, 0, 0]}, build_header(0)),
-    ?_assertEqual({ok, Prefix ++ [0, 0, 0, 1]}, build_header(1)),
-    ?_assertEqual({ok, Prefix ++ [0, 0, 0, 128]}, build_header(128)),
-    ?_assertEqual({ok, Prefix ++ [0, 0, 0, 255]}, build_header(255)),
-    ?_assertEqual({ok, Prefix ++ [0, 0, 1, 0]}, build_header(256)),
-    ?_assertEqual({ok, Prefix ++ [0, 0, 255, 255]}, build_header(65535)),
-    ?_assertEqual({ok, Prefix ++ [0, 255, 255, 255]}, build_header(16777215)),
-    ?_assertEqual({ok, Prefix ++ [1, 0, 0, 0]}, build_header(16777216)),
-    ?_assertEqual({ok, Prefix ++ [255, 255, 255, 255]},
-                       build_header(4294967295)),
-    ?_assertEqual({error, badarg}, build_header(4294967296)),
-    ?_assertEqual({error, badarg}, build_header(-1))
-  ].
-
--endif.
 
 objects(Repo, Ids) -> objects(Repo, Ids, #{}, []).
 objects(_, [], _, Res) ->

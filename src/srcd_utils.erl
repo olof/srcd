@@ -7,35 +7,16 @@
          read_u32/0, read_u32/1, read_u32/2]).
 
 -ifdef(TEST).
--include_lib("eunit/include/eunit.hrl").
+-include("tests/utils.trl").
 -endif.
 
 hex_to_int(Hex) ->
   {ok, [N], []} = io_lib:fread("~16u", Hex),
   N.
 
--ifdef(TEST).
-
-hex_to_int_test_() ->
-  [
-    ?_assertEqual(15, hex_to_int("F")),
-    ?_assertEqual(15, hex_to_int("0F")),
-    ?_assertEqual(255, hex_to_int("FF"))
-  ].
-
--endif.
-
 hex_to_bin_sha1(Hex) when length(Hex) =:= 40 ->
   N = hex_to_int(Hex),
   binary_to_list(<<N:160>>).
-
--ifdef(TEST).
-
-hex_to_bin_sha1_test_() ->
-  [?_assertEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 15],
-                 hex_to_bin_sha1("000000000000000000000000000000000000000F"))].
-
--endif.
 
 byte_to_hex(Byte) when Byte >= 0 andalso Byte < 256 ->
   N = integer_to_list(Byte, 16),
@@ -77,26 +58,6 @@ cmd_split([Ch | Cmd], This, Q, true, Res) ->
   cmd_split(Cmd, [Ch | This], Q, false, Res);
 cmd_split([Ch | Cmd], This, Q, false, Res) ->
   cmd_split(Cmd, [Ch | This], Q, false, Res).
-
--ifdef(TEST).
--define(_ok(V, In), ?_assertEqual({ok, V}, cmd_split(In))).
-
-cmd_split_test_() ->
-  [
-    ?_ok([[]], ""),
-    ?_ok(["true"], "true"),
-    ?_ok(["echo", "hej"], "echo hej"),
-    ?_ok(["echo", "hej\\"], "echo hej\\\\"),
-    ?_ok(["echo", "foo bar"], "echo foo\\ bar"),
-    ?_ok(["echo", "foo bar"], "echo \"foo bar\""),
-    ?_ok(["echo", "foo bar"], "echo 'foo bar'"),
-    ?_ok(["echo", "foobar baz"], "echo foo'bar baz'"),
-    ?_ok(["echo", "foo bar baz"], "echo foo' bar baz'"),
-    ?_ok(["echo", "foo", "bar", "baz"], "echo foo bar baz"),
-    ?_assertEqual(error, cmd_split("echo 'foo bar")),
-    ?_assertEqual(error, cmd_split("echo \"foo bar"))
-  ].
--endif.
 
 pipe(State, []) -> {ok, State};
 pipe(State, [Step | Steps]) ->
