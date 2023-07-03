@@ -1,0 +1,11 @@
+#!/bin/sh
+: ${REBAR_PROFILE:=default}
+: ${HOST:=127.0.0.1}
+: ${PORT:=22222}
+: ${SRCD_REPO_DIR:=$PWD/repos}
+: ${SSH_HOST_KEY_DIR:=$PWD/keys}
+
+ls -l $SRCD_REPO_DIR
+
+export HOST PORT SRCD_REPO_DIR SSH_HOST_KEY_DIR
+exec _build/$REBAR_PROFILE/rel/srcd/bin/srcd foreground
