@@ -60,12 +60,17 @@ inflate_reader(Z, {Reader, Pos}, InProc, InUnproc, Out, ReadCount0, N) ->
       case catch zlib:'inflateEnd'(Z) of
         {'EXIT', {data_error, _}} ->
           inflate_reader({Reader, NewPos}, InProc ++ NewBuf);
-        ok -> {ok, ReadCount, Out, InProc ++ NewBuf}
+        ok ->
+          {ok, ReadCount, Out, InProc ++ NewBuf}
       end;
     New when is_list(New) ->
       case catch zlib:'inflateEnd'(Z) of
         {'EXIT', {data_error, _}} ->
           inflate_reader({Reader, NewPos}, InProc ++ NewBuf);
-        ok -> {ok, ReadCount, Out ++ binary_to_list(iolist_to_binary(New)), InProc ++ NewBuf}
+        ok ->
+          {ok, ReadCount, Out ++ iolist_to_list(New), InProc ++ NewBuf}
       end
   end.
+
+iolist_to_list(IoList) ->
+  binary_to_list(iolist_to_binary(IoList)).
