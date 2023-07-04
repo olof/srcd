@@ -115,7 +115,7 @@ advertisement(Repo, Version) ->
         undefined -> Refs0;
         Commit -> [{"HEAD", Commit} | Refs0]
       end;
-    {error, enoent} -> {error, "No such repo\n"}
+    {error, no_such_repo} -> {error, "No such repo~n"}
   end,
   case Refs of
     {error, Err} -> {error, Err};
