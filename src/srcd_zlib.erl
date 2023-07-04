@@ -41,17 +41,8 @@ inflate_reader(Reader, PreBuf) ->
   ok = zlib:'inflateInit'(Z),
   {ok, Len, Data, Compressed} = inflate_reader(Z, Reader, [], PreBuf,
                                                [], length(PreBuf), 1),
-  case lists:split(2, Compressed) of
-    {[120, 156], _} ->
-      CLen = length(Compressed),
-      {CLen, Len} = {Len, CLen},
-      ok = zlib:close(Z),
-      {ok, Len, Data, Compressed};
-    {Prefix, Tail} ->
-      ?LOG_NOTICE("Unexpected header ~p~nBefore: ~p~nAfter: ~p~nData: ~p",
-                  [Prefix, Compressed, Tail, Data]),
-      {error, bad_zlib}
-  end.
+  zlib:close(Z),
+  {ok, Len, Data, Compressed}.
 inflate_reader(Z, {Reader, Pos}, InProc, InUnproc, Out, ReadCount0, N) ->
   %?LOG_NOTICE("Round ~p, processed: ~p, unprocessed: ~p",
   %            [N, length(InProc), length(InUnproc)]),
