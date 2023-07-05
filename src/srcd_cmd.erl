@@ -32,7 +32,7 @@ enter_fsm(Mod, Version, Args) ->
   end.
 
 step_fsm(Mod, State, Data) ->
-  ?LOG_NOTICE("step ~p:~p (~p)", [Mod, State, Data]),
+  ?LOG_NOTICE("step ~p:~p", [Mod, State]),
   case Mod:State(Data) of
     {next_state, NewState, NewData} -> step_fsm(Mod, NewState, NewData);
     {next_state, NewState, Output, NewData} ->
