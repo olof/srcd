@@ -2,7 +2,7 @@
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 -module(srcd_object).
 -export([read/1, read/2, deps/1, pack/1, encode/1, canon/1,
-         parse/1, parse/2, type_id/1, type_name/1]).
+         parse/1, parse/2, type/1, type_id/1, type_name/1]).
 
 -include_lib("kernel/include/logger.hrl").
 -include("srcd_object.hrl").
@@ -10,6 +10,11 @@
 -ifdef(TEST).
 -include("tests/object.trl").
 -endif.
+
+type(#object{data=Data}) -> type(Data);
+type(#blob{}) -> blob;
+type(#tree{}) -> tree;
+type(#commit{}) -> commit.
 
 type_id(#object{data=Data}) -> type_id(element(1, Data));
 type_id(Atom) ->
