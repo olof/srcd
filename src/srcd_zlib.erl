@@ -23,9 +23,9 @@
 deflate(Data) ->
   Z = zlib:open(),
   ok = zlib:'deflateInit'(Z, default),
-  [X] = zlib:deflate(Z, Data, finish),
+  IoList = zlib:deflate(Z, Data, finish),
   ok = zlib:'deflateEnd'(Z),
-  binary_to_list(X).
+  srcd_utils:iolist_to_list(IoList).
 
 inflate(IoDevice) ->
   ?LOG_NOTICE("Inflate object"),
