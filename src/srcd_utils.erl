@@ -4,7 +4,7 @@
 
 -export([cmd_split/1, hex_to_int/1, bin_to_hex/1, bytes_to_hex/1,
          hex_to_bin_sha1/1, pipe/2, read/1, read/2, read/3,
-         read_u32/0, read_u32/1, read_u32/2]).
+         read_u32/0, read_u32/1, read_u32/2, iolist_to_list/1]).
 
 -ifdef(TEST).
 -include("tests/utils.trl").
@@ -83,3 +83,6 @@ read_u32(IoDevice, Digest) ->
   {Bytes, D} = srcd_utils:read(IoDevice, 4, Digest),
   <<N:32>> = list_to_binary(Bytes),
   {N, D}.
+
+iolist_to_list(IoList) ->
+  binary_to_list(iolist_to_binary(IoList)).
