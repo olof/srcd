@@ -47,8 +47,8 @@ read(Fh, Digest1) ->
   % the remaining bytes to the head of stdin somehow.
   %   We could a lot and see how many objects we get. (But when do we
   %   stop reading?)
-  % What does git do? I guess it relies on it having control over the zlib
-  % implementation, but haven't verified.
+  % What does git do? It relies on memory pointers to buffers where both
+  % it and zlib can do its work.
   case Type of
     ref_delta -> {error, ref_delta_not_implemented};
     ofs_delta -> {error, ofs_delta_not_implemented};
