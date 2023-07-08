@@ -80,21 +80,19 @@ read(Fh, Digest1) ->
       Digest = crypto:hash_update(Digest0, Compressed),
       ObjDigest = crypto:hash_update(ObjDigest1, Object),
       {ok, Parsed} = parse(Type, Object),
-      H = crypto:hash_final(ObjDigest),
-      ?LOG_NOTICE("object parsed: hash: ~p", [srcd_utils:bin_to_hex(H)]),
-      {ok, #object{data=Parsed, id=srcd_utils:bin_to_hex(H)}, Digest}
+      H = srcd_utils:bin_to_hex(crypto:hash_final(ObjDigest)),
+      ?LOG_NOTICE("object parsed: hash: ~p", [H]),
+      {ok, #object{data=Parsed, id=H}, Digest}
   end.
 
 read_delta_data(Fh, Digest) ->
   {ok, _, Object, Compressed} = srcd_zlib:inflate(Fh),
   Digest0 = crypto:hash_update(Digest, Compressed),
 
-  ?LOG_NOTICE("REF DELTA BYTES: ~p", [Object]),
-
   {SizeBase, Tail1} = parse_delta_size(Object),
   {SizeTarget, Tail} = parse_delta_size(Tail1),
 
-  ?LOG_NOTICE("Base size: ~p; Target size: ~p", [SizeBase, SizeTarget]),
+  ?LOG_NOTICE("Delta base size: ~p; target size: ~p", [SizeBase, SizeTarget]),
   {ok, Instructions} = parse_delta_data(Tail, SizeTarget, []),
   {ok, {SizeBase, SizeTarget, Instructions}, Digest0}.
 
@@ -103,7 +101,6 @@ parse_delta_data(_Tail, 0, Instructions) ->
   {ok, lists:reverse(Instructions)};
 parse_delta_data(Data, BytesLeft, Instructions) when BytesLeft > 0 ->
   {Instruction, Size, Tail} = parse_delta_instruction(Data),
-  ?LOG_NOTICE("delta copy remaining bytes: ~p", [BytesLeft - Size]),
   parse_delta_data(Tail, BytesLeft - Size, [Instruction | Instructions]).
 
 parse_delta_instruction([Byte | Object]) ->
@@ -150,7 +147,6 @@ read_base_copy_instr(Object, Mask, N, {Offsets, Sizes}) ->
 
 parse_delta_size(Object) -> parse_delta_size(Object, 0, 0).
 parse_delta_size([Byte | Tail], Sum, Exp) ->
-  ?LOG_NOTICE("PARSE_DELTA_SIZE: ~p", [Byte]),
   case Byte band 128 of
     128 -> parse_delta_size(Tail, (Byte band 127 bsl Exp) + Sum, Exp + 7);
     _ -> {(Byte bsl Exp) + Sum, Tail}

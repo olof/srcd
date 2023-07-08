@@ -82,7 +82,8 @@ fetch({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
 
 fetch_packfile(Repo, Wants, Haves) ->
   {ok, Data} = srcd_packfile:build(Repo, Wants),
-  ?LOG_NOTICE("fetch_packfile got ~p", [Data]),
+  ?LOG_NOTICE("Successfully constructed packfile of size ~p: ~p", [length(Data), lists:sublist(Data, 256) ++ ['...']]),
+  %?LOG_NOTICE("Successfully constructed packfile of size ~p: ~p", [length(Data), Data]),
   srcd_pack:build_pkt([
     "packfile\n",
     [2 | "ok this is happening\n"],
