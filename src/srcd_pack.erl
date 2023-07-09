@@ -6,10 +6,15 @@
 
 -include_lib("kernel/include/logger.hrl").
 
-pkt_line(flush) -> "0000";
-pkt_line(delim) -> "0001";
-pkt_line(Line) ->
-  lists:concat([io_lib:format("~4.16.0b", [length(Line) + 4]), Line]).
+-define(MAX_PACKET_DATA_LEN, 65516).
+
+pkt_line(flush) -> ["0000"];
+pkt_line(delim) -> ["0001"];
+pkt_line(Line) when length(Line) =< ?MAX_PACKET_DATA_LEN ->
+  [io_lib:format("~4.16.0b", [length(Line) + 4]), Line];
+pkt_line(Line) when length(Line) > ?MAX_PACKET_DATA_LEN ->
+  {Head, Tail} = lists:split(?MAX_PACKET_DATA_LEN, Line),
+  [pkt_line(Head), pkt_line(Tail)].
 
 no_such_repo(Repo) ->
   ?LOG_NOTICE("requested repo ~p does not exist", [Repo]),
@@ -40,7 +45,7 @@ prepend_version(1, Pkt) -> ["version 1\n" | Pkt];
 prepend_version(2, Pkt) -> ["version 2\n" | Pkt].
 
 build_pkt(Lines) ->
-  {ok, lists:concat([pkt_line(Line) || Line <- Lines])}.
+  {ok, lists:flatten([pkt_line(Line) || Line <- Lines])}.
 
 capstring(Caps) -> string:join([capability(C) || C <- Caps], " ").
 capability({Key, Value}) when is_atom(Key) ->
