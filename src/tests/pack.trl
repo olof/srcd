@@ -1,0 +1,13 @@
+% ex:ts=2:sw=2:sts=2:et:ft=erlang
+% -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
+
+-include_lib("eunit/include/eunit.hrl").
+
+line_split_test_() ->
+  [
+    ?_assertEqual(Expected, line_split(Len, In)) || {Len, In, Expected} <- [
+        {10, "str", ["str"]},
+        {3, "foobarbaz", ["foo", "bar", "baz"]},
+        {3, "foobarbazquxquux", ["foo", "bar", "baz", "qux", "quu", "x"]}
+      ]
+  ].
