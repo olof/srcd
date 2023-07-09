@@ -19,6 +19,7 @@ count=$(commits | wc -l)
 plan $(($count * 3))
 
 for commit in $(commits); do
+	rm -f "$GIT_TRACE_PACKFILE"
 	echo "# pushing $commit"
 	#git -C push show $commit >&2
 	output=$(git -C push push origin $commit:refs/heads/master)
@@ -26,6 +27,7 @@ for commit in $(commits); do
 	is $r 0 "pushing srcd repo commit $commit, exit status"
 	[ $r -eq 0 ] || die "$output"
 
+	rm -f "$GIT_TRACE_PACKFILE"
 	output=$(git -C fetch fetch 2>&1)
 	r=$?
 	is $r 0 "fetching after push, exit status"
