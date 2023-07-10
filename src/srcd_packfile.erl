@@ -24,7 +24,6 @@ read(IoDevice) ->
 
 build(Repo, Ids) ->
   {Count, Objects} = objects(Repo, Ids),
-  ?LOG_NOTICE("Got ~p objects: ~p", [Count, Objects]),
   case build_header(Count) of
     {ok, Header} -> {ok, append_hash(Header ++ Objects)};
     {error, Err} -> {error, Err}
@@ -62,7 +61,13 @@ read_packfile_objects({IoDevice, #pack{count=Count, hash=Digest} = State}) ->
 read_packfile_objects(_, Digest, 0, Res) -> {ok, lists:reverse(Res), Digest};
 read_packfile_objects(IoDevice, Digest, Count, Res) ->
   {ok, Object, D} = srcd_object:read(IoDevice, Digest),
-  ?LOG_NOTICE("Object unpacked (~p remaining): ~p", [Count - 1, Object]),
+  case Object of
+    #object{id=Id} ->
+      ?LOG_NOTICE("Object ~p unpacked (~p remaining): ~p",
+                  [Id, Count - 1, srcd_object:type(Object)]);
+    #ref_delta{ref=Id} ->
+      ?LOG_NOTICE("Ref delta unpacked (~p remaining): ~p", [Count - 1, Id])
+  end,
   read_packfile_objects(IoDevice, D, Count - 1, [Object | Res]).
 
 read_packfile_signature({IoDevice, #pack{hash=D} = State}) ->
@@ -85,7 +90,6 @@ append_hash(Packfile) ->
 
 objects(Repo, Ids) -> objects(Repo, Ids, #{}, []).
 objects(_, [], _, Res) ->
-  ?LOG_NOTICE("RESSS = ~p", [Res]),
   Count = length(Res),
   Res2 = [srcd_object:pack(Obj) || Obj <- Res],
   {Count, lists:flatten(lists:reverse(Res2))};
@@ -95,9 +99,7 @@ objects(Repo, [Id | Ids], Seen, Res) ->
     false ->
       case srcd_repo:object(Repo, Id) of
         {ok, Object} ->
-          ?LOG_NOTICE("Obj: ~p", [Object]),
           Deps = srcd_object:deps(Object),
-          ?LOG_NOTICE("Obj deps: ~p", [Deps]),
           objects(Repo, Deps ++ Ids, Seen#{Id => 1}, [Object | Res]);
         {error, nomatch} ->
           {error, invalid_ref}

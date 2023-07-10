@@ -36,19 +36,17 @@ step_fsm(Mod, State, Data) ->
   case Mod:State(Data) of
     {next_state, NewState, NewData} -> step_fsm(Mod, NewState, NewData);
     {next_state, NewState, Output, NewData} ->
-      ?LOG_NOTICE("> ~p", [Output]),
       io:put_chars(Output),
+      ?LOG_INFO("exec partial result: ~p", [Output]),
       step_fsm(Mod, NewState, NewData);
     ok ->
       ?LOG_INFO("exec finnished successfully"),
       {ok, ""};
     {ok, Res} ->
-      ?LOG_NOTICE("> ~p", [Res]),
-      ?LOG_INFO("exec finnished successfully"),
+      ?LOG_INFO("exec finnished successfully: ~p", [Res]),
       {ok, Res};
     {error, Reason} ->
-      ?LOG_NOTICE("> ~p", [Reason]),
-      ?LOG_INFO("exec failed"),
+      ?LOG_INFO("exec failed: ~p", [Reason]),
       {error, Reason}
   end.
 

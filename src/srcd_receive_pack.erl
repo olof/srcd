@@ -69,7 +69,9 @@ verify_packfile({#?MODULE{repo=Repo} = Data, Cmds, Packfile}) ->
   Missing = [D || D <- Unresolved, not srcd_repo:exists(Repo, D)],
   case Missing of
     [] -> {next_state, process_cmds, {Data, Cmds, Packfile}};
-    Oids -> {error, "incomplete packfile"}
+    _ ->
+      ?LOG_NOTICE("Missing objects: ~p", [Missing]),
+      {error, "incomplete packfile"}
   end.
 
 process_cmds({#?MODULE{repo=Repo} = Data, Cmds, Packfile}) ->
