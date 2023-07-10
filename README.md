@@ -10,13 +10,13 @@ things work:
  * git protocol supported: a little bit of v0, a little bit of v2
  * record based definition of git objects (and pack encoding of these)
  * packfile and object parsing
- * ls-refs working
- * fetch working, partially
+ * ls-refs
+ * fetch
    * can clone repos
    * can fetch repos with no change needed
    * can fetch repos with new objects
- * push working, partially
-   * only simples object types
+ * push
+   * can push repos with ref deltas
 
 When I say "working" is that simple situations have been seen to work.
 
@@ -29,7 +29,6 @@ Obvious missing things:
  * Authentication (ssh key manager / tie in to SSO)
  * Required object types:
    * Tags ([#3](https://github.com/olof/srcd/issues/3))
-   * `ref_delta` objects ([#2](https://github.com/olof/srcd/issues/2))
  * Optional protocol [capabilities][git-caps]:
    * `ofs_delta` objects
    * Thin packs
