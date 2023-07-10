@@ -1,7 +1,7 @@
 % ex:ts=2:sw=2:sts=2:et
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 -module(srcd_packfile).
--export([read/0, read/1, build/2, object_ids/1, object_deps/1]).
+-export([read/0, read/1, build/2, build/3, object_ids/1, object_deps/1]).
 
 -include("srcd_object.hrl").
 -include_lib("kernel/include/logger.hrl").
@@ -22,8 +22,11 @@ read(IoDevice) ->
     ?STATE_FUN(read_packfile_signature)
   ]).
 
-build(Repo, Ids) ->
-  {Count, Objects} = objects(Repo, Ids),
+build(Repo, Ids) -> build(Repo, [], Ids).
+build(Repo, Have, Ids) when is_list(Have) ->
+  build(Repo, maps:from_list([{Id, 1} || Id <- Have]), Ids);
+build(Repo, Have = #{}, Ids) ->
+  {Count, Objects} = objects(Repo, Have, Ids),
   case build_header(Count) of
     {ok, Header} -> {ok, append_hash(Header ++ Objects)};
     {error, Err} -> {error, Err}
@@ -89,6 +92,7 @@ append_hash(Packfile) ->
   Packfile ++ binary_to_list(Hash).
 
 objects(Repo, Ids) -> objects(Repo, Ids, #{}, []).
+objects(Repo, Have, Ids) -> objects(Repo, Ids, Have, []).
 objects(_, [], _, Res) ->
   Count = length(Res),
   Res2 = [srcd_object:pack(Obj) || Obj <- Res],
