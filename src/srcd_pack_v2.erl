@@ -82,13 +82,20 @@ fetch({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
 
 fetch_packfile(Repo, Wants, Haves) ->
   {ok, Data} = srcd_packfile:build(Repo, Wants),
-  ?LOG_NOTICE("fetch_packfile got ~p", [Data]),
-  srcd_pack:build_pkt([
-    "packfile\n",
-    [2 | "ok this is happening\n"],
-    [1 | Data],
-    flush
-  ]).
+  PackLines = [
+    [1 | D] || D <-
+      srcd_pack:line_split(srcd_pack:max_data_len() - 1, Data)
+  ],
+  ?LOG_NOTICE("Successfully constructed packfile of size ~p: ~p",
+              [length(Data), lists:sublist(Data, 256) ++ ['...']]),
+  %?LOG_NOTICE("Successfully constructed packfile of size ~p: ~p",
+  %            [length(Data), Data]),
+  srcd_pack:build_pkt(lists:concat([
+    ["packfile\n"],
+    [[2 | "ok this is happening\n"]],
+    PackLines,
+    [flush]
+  ])).
 
 fetch_ack(Data, Repo, Wants, Haves) ->
   case has_all_oids(Repo, Haves) of
