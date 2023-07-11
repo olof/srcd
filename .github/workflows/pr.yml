@@ -23,10 +23,10 @@ jobs:
       with:
         key: otp23
         path: _build
-    - name: Lint
-      run: rebar3 lint
     - name: Compile
       run: rebar3 compile
+    - name: Lint
+      run: rebar3 lint
     - name: Run unit tests
       run: rebar3 do eunit, ct
     - name: Build release
