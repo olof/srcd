@@ -191,4 +191,5 @@ export GIT_TRACE=$test_dir/git.log
 export GIT_TRACE_PACKET=$test_dir/git.packet.log
 export GIT_TRACE_PACKFILE=$test_dir/git.pack
 
+git --version
 . "$1"
