@@ -1,13 +1,13 @@
 ---
 name: Pull requests
 
-permissions:
-  contents: read
-
 on:
   pull_request:
     branches:
      - master
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -15,21 +15,23 @@ jobs:
     container:
       image: erlang:23
     steps:
-     - uses: actions/checkout@v3
-     - name: Restore dependency cache
-       uses: actions/cache/restore@v3
-       with:
-         path: _build
-         key: otp23
-     - name: Lint
-       run: rebar3 lint
-     - name: Compile
-       run: rebar3 compile
-     - name: Run unit tests
-       run: rebar3 do eunit, ct
-     - name: Build release
-       run: rebar3 release
-     - name: Build test release
-       run: rebar3 as test release
-     - name: Run integration tests
-       run: sh tests/run.sh
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Restore dependency cache
+      uses: actions/cache/restore@v3
+      with:
+        key: otp23
+        path: _build
+    - name: Lint
+      run: rebar3 lint
+    - name: Compile
+      run: rebar3 compile
+    - name: Run unit tests
+      run: rebar3 do eunit, ct
+    - name: Build release
+      run: rebar3 release
+    - name: Build test release
+      run: rebar3 as test release
+    - name: Run integration tests
+      run: sh tests/run.sh

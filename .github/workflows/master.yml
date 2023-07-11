@@ -1,8 +1,10 @@
+---
 name: Master branch
 
 on:
   push:
-    branches: [ master ]
+    branches:
+     - master
 
 permissions:
   contents: read
@@ -30,6 +32,6 @@ jobs:
     - name: Build release
       run: rebar3 release
     - name: Build test release
-      run: REBAR_PROFILE=test rebar3 release
+      run: rebar3 as test release
     - name: Run integration tests
       run: sh tests/run.sh
