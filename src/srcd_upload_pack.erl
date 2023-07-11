@@ -43,19 +43,14 @@ wait_for_input(Data, Res, Caps0) ->
                                           lists:reverse(Res)}};
     {data, Line2} ->
       Line1 = string:trim(Line2),
-      ?LOG_NOTICE("Got line: ~p", [Line1]),
       {Line, Caps} = capture_caps(Line1, []),
-      ?LOG_NOTICE("Got line [~p]: ~p", [Caps, Line]),
-      ?LOG_NOTICE("Got line [~p]: ~p", [Caps, parse_line(Line)]),
       wait_for_input(Data, [parse_line(Line) | Res], Caps)
   end.
 
 process_lines({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
-  ?LOG_NOTICE("Client args ~p", [Args]),
+  ?LOG_NOTICE("Client args ~p (caps: ~p)", [Args, Caps]),
   Wants = proplists:get_all_values(want, Args),
-  ?LOG_NOTICE("Client wants ~p", [Wants]),
   Haves = proplists:get_all_values(have, Args),
-  ?LOG_NOTICE("Client has ~p", [Haves]),
   case proplists:get_bool(done, Args) of
     true -> fetch_packfile(Repo, Wants, Haves);
     false -> fetch_ack(Data, Repo, Wants, Haves)
@@ -63,8 +58,6 @@ process_lines({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
 
 parse_line("done") -> done;
 parse_line(Line) ->
-  ?LOG_NOTICE("parse_line: ~p", [Line]),
-  ?LOG_NOTICE("parse_line: ~p", [string:prefix(Line, "want ")]),
   case string:prefix(Line, "want ") of
     nomatch -> Line;
     Oid -> {want, Oid}

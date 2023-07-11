@@ -143,7 +143,6 @@ write_objects(Fh, [Obj | Objects]) ->
 
 write_object(Fh, Obj) ->
   Packed = srcd_object:pack(Obj),
-  ?LOG_NOTICE("packed object: ~p", [Packed]),
   io:put_chars(Fh, srcd_object:pack(Obj)).
 
 hash_packfile(Fh) ->
