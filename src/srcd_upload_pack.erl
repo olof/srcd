@@ -67,6 +67,8 @@ parse_line(Line) ->
   end.
 
 fetch_packfile(Repo, Wants, Haves) ->
+  ?LOG_NOTICE("Creating pack on ~p:~n    Haves: ~p~n    Wants: ~p",
+              [Repo, Haves, Wants]),
   {ok, Packfile} = srcd_packfile:build(Repo, Haves, Wants),
   srcd_pack:build_pkt(srcd_pack:line_split_ch(1, Packfile)).
 
