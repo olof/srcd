@@ -6,6 +6,8 @@
   build_pkt/1,
   line_split/1,
   line_split/2,
+  line_split_ch/2,
+  line_split_ch/3,
   max_data_len/0,
   read_line/0,
   read_command/0
@@ -29,6 +31,9 @@ line_split(Len, Str, Acc) when length(Str) < Len -> lists:reverse([Str | Acc]);
 line_split(Len, Str, Acc) ->
   {Head, Tail} = lists:split(Len, Str),
   line_split(Len, Tail, [Head | Acc]).
+
+line_split_ch(Ch, Str) -> line_split_ch(?MAX_PACKET_DATA_LEN, Ch, Str).
+line_split_ch(Len, Ch, Str) -> [[Ch | Line] || Line <- line_split(Len-1, Str)].
 
 pkt_line(flush) -> "0000";
 pkt_line(delim) -> "0001";
