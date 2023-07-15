@@ -1,0 +1,38 @@
+% ex:ts=2:sw=2:sts=2:et:ft=erlang
+% -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
+
+-include_lib("eunit/include/eunit.hrl").
+
+-define(HASH, "faced24b5e67337d44f7633494d963246212fba8").
+-define(WANT, "want "++?HASH).
+-define(CAPS0(X), ?WANT ++ [0] ++ X).
+-define(CAPS32(X), ?WANT ++ [32] ++ X).
+
+capture_caps_test_() ->
+  [
+    ?_assertEqual(Expected, capture_caps(Input, [])) ||
+      {Input, Expected} <- [
+        {?CAPS32("agent=test"), {?WANT, [{agent, "test"}]}},
+
+        % Spec says \0, but older git versions seems to use \x20;
+	% we should handle both.
+        {?CAPS0("agent=test"), {?WANT, [{agent, "test"}]}},
+
+	% With lots of caps
+        {?CAPS0("agent=test object-format=sha1 side-band-64k"),
+	 {?WANT, [{agent, "test"}, {object_format, "sha1"}, 'side-band-64k']}
+	},
+
+	% With unknown caps
+        {?CAPS0("agent=test hack=yes"), {?WANT, [{agent, "test"}]}},
+
+        % Without caps
+        {?WANT, {?WANT, []}},
+	{?CAPS32([]), {?WANT, []}},
+	{?CAPS32([32]), {?WANT, []}},
+	{?CAPS0([]), {?WANT, []}},
+	{?CAPS0([32]), {?WANT, []}},
+        {"have "++?HASH, {"have "++?HASH, []}}
+      ]
+  ].
+

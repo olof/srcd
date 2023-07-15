@@ -14,6 +14,9 @@
 ]).
 
 -include("srcd.hrl").
+-ifdef(TEST).
+-include("tests/upload_pack.trl").
+-endif.
 
 caps() -> srcd_ssh:caps() ++ [].
 
@@ -105,7 +108,7 @@ alt_delims(Line0, [Delim | Alts]) ->
 
 capture_caps(Line1, []) ->
   case string:prefix(Line1, "want ") of
-    nomatch -> Line1;
+    nomatch -> {Line1, []};
     Line0 -> case alt_delims(Line0, ["\0", " "]) of
       {Line, Caps} -> {"want " ++ Line, parse_caps(Caps)};
       nomatch -> {"want " ++ Line0, []}
@@ -123,7 +126,10 @@ filter_caps([Cap0 | Caps], Res) ->
 parse_cap(["agent", UA]) -> {agent, UA};
 parse_cap(["object-format", Hash]) -> {object_format, Hash};
 parse_cap(["side-band-64k"]) -> 'side-band-64k';
-parse_cap([[]]) -> skip.
+parse_cap([[]]) -> skip;
+parse_cap(Cap) ->
+  ?LOG_NOTICE("Unknown capability requested: ~p", [Cap]),
+  skip.
 
 reflines_with_head(Refs, Repo, Symrefs) ->
   {ok, Ref} = srcd_repo:default_branch(Repo),
