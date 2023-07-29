@@ -43,7 +43,7 @@ step_fsm(Mod, State, Data) ->
       ?LOG_INFO("exec finnished successfully"),
       {ok, ""};
     {ok, Res} ->
-      ?LOG_INFO("exec finnished successfully: ~p", [Res]),
+      ?LOG_INFO("exec finnished successfully, with some more bytes"),
       {ok, Res};
     {error, Reason} ->
       ?LOG_INFO("exec failed: ~p", [Reason]),

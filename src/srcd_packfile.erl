@@ -64,13 +64,13 @@ read_packfile_objects({IoDevice, #pack{count=Count, hash=Digest} = State}) ->
 read_packfile_objects(_, Digest, 0, Res) -> {ok, lists:reverse(Res), Digest};
 read_packfile_objects(IoDevice, Digest, Count, Res) ->
   {ok, Object, D} = srcd_object:read(IoDevice, Digest),
-  case Object of
-    #object{id=Id} ->
-      ?LOG_NOTICE("Object ~p unpacked (~p remaining): ~p",
-                  [Id, Count - 1, srcd_object:type(Object)]);
-    #ref_delta{ref=Id} ->
-      ?LOG_NOTICE("Ref delta unpacked (~p remaining): ~p", [Count - 1, Id])
-  end,
+  %case Object of
+  %  #object{id=Id} ->
+  %    ?LOG_NOTICE("Object ~p unpacked (~p remaining): ~p",
+  %                [Id, Count - 1, srcd_object:type(Object)]);
+  %  #ref_delta{ref=Id} ->
+  %    ?LOG_NOTICE("Ref delta unpacked (~p remaining): ~p", [Count - 1, Id])
+  %end,
   read_packfile_objects(IoDevice, D, Count - 1, [Object | Res]).
 
 read_packfile_signature({IoDevice, #pack{hash=D} = State}) ->
