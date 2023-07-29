@@ -74,7 +74,7 @@ fetch_packfile(Repo, Wants, Haves) ->
   % length prefix it. In v2, the packfile is always side-banded.
   % Meaning: we have something that works right now, but we
   % should add support for the optional side-band capabilities.
-  {ok, Packfile} = srcd_packfile:build(Repo, Haves, Wants),
+  {ok, Packfile} = srcd_packfile:build(Repo, Haves, Wants).
 
 fetch_ack(Data, Repo, Wants, Haves) ->
   case Haves of
