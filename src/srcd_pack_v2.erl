@@ -11,13 +11,13 @@
   fetch/1
 ]).
 
--include("srcd.hrl").
+-include("srcd_session.hrl").
 
 caps() -> srcd_ssh:caps() ++ [].
 
 init(Version = 2, Args) ->
   {ok, {Repo, Opts}} = parse_args(Args),
-  Data = #pack_repo{repo=Repo, version=Version, opts=Opts},
+  Data = #session{repo=Repo, version=Version, opts=Opts},
   {ok, handshake, Data}.
 
 handshake(Data) ->
@@ -32,7 +32,7 @@ handshake(Data) ->
   ]),
   {next_state, read_command, Greeting, Data}.
 
-read_command(#pack_repo{repo=Repo} = Data) ->
+read_command(#session{repo=Repo} = Data) ->
   case srcd_pack:read_command() of
     flush -> ok;
     {Cmd, Caps, Args} ->
@@ -48,7 +48,7 @@ process_command({Data, "fetch", {Caps, Args}}) ->
 process_command({_, _, _}) ->
   {error, "unsupported command"}.
 
-ls_refs({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
+ls_refs({#session{repo=Repo} = Data, Caps, Args}) ->
   case srcd_repo:refs(Repo) of
     {ok, []} ->
       {ok, Adv} = srcd_pack:build_pkt([flush]),
@@ -69,7 +69,7 @@ ls_refs({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
       {error, "No such repo~n"}
   end.
 
-fetch({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
+fetch({#session{repo=Repo} = Data, Caps, Args}) ->
   ?LOG_NOTICE("Client args ~p", [Args]),
   Wants = proplists:get_all_values(want, Args),
   ?LOG_NOTICE("Client wants ~p", [Wants]),

@@ -13,7 +13,7 @@
   ls_refs/1
 ]).
 
--include("srcd.hrl").
+-include("srcd_session.hrl").
 -ifdef(TEST).
 -include("tests/upload_pack.trl").
 -endif.
@@ -22,7 +22,7 @@ caps() -> srcd_ssh:caps() ++ [].
 
 init(Version, Args) ->
   {ok, {Repo, Opts}} = parse_args(Args),
-  Data = #pack_repo{repo=Repo, version=Version, opts=Opts},
+  Data = #session{repo=Repo, version=Version, opts=Opts},
   case Version of
     2 -> {ok, handshake, Data};
     _ -> {ok, advertise, Data}
@@ -50,7 +50,7 @@ wait_for_input(Data, Res, Caps0) ->
       wait_for_input(Data, [parse_line(Line) | Res], Caps)
   end.
 
-process_lines({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
+process_lines({#session{repo=Repo} = Data, Caps, Args}) ->
   ?LOG_NOTICE("Client args ~p (caps: ~p)", [Args, Caps]),
   Wants = proplists:get_all_values(want, Args),
   Haves = proplists:get_all_values(have, Args),
@@ -151,7 +151,7 @@ reflines([{Name, Commit} | Refs], Res) ->
     string:join([Commit, Name], " ") | Res
   ]).
 
-advertise(#pack_repo{repo=Repo, version=Version, opts=Opts} = Data) ->
+advertise(#session{repo=Repo, version=Version, opts=Opts} = Data) ->
   case srcd_repo:refs(Repo) of
     {ok, Refs} ->
       Reflines = reflines_with_head(Refs, Repo, false),
@@ -164,7 +164,7 @@ advertise(#pack_repo{repo=Repo, version=Version, opts=Opts} = Data) ->
       {error, "No such repo~n"}
   end.
 
-read_command(#pack_repo{repo=Repo} = Data) ->
+read_command(#session{repo=Repo} = Data) ->
   case srcd_pack:read_command() of
     flush -> ok;
     {Cmd, Caps, Args} ->
@@ -190,7 +190,7 @@ ls_ref_args([Arg | Args], Res) ->
       [{prefix, ArgArgs} | Res]
   end).
 
-ls_refs({#pack_repo{repo=Repo} = Data, Caps, Args}) ->
+ls_refs({#session{repo=Repo} = Data, Caps, Args}) ->
   case srcd_repo:refs(Repo) of
     {ok, []} ->
       {ok, Adv} = srcd_pack:build_pkt([flush]),
