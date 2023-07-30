@@ -14,11 +14,11 @@
 -endif.
 
 %%%% Inflating a compressed blob:
-% {more, Context2} = flate:in(Part1),
+% {more, Len0, Context2} = flate:in(Part1),
 %
-% % We got back a 'more' atom, let's feed it more data!
-% {more, Context1} = flate:in(Context2, Part2),
-% {more, Context0} = flate:in(Context1, Part3),
+% % We got back a 'more' atom, let's feed it Len0 more units of data!
+% {more, Len1, Context1} = flate:in(Context2, Part2),
+% {more, Len2, Context0} = flate:in(Context1, Part3),
 %
 % % When it has had enough, it says 'ok', and returns
 % % the decoded content, and a final context object.
@@ -62,28 +62,32 @@ in(Data) -> in(Data, []).
 route(in, State, Opts) -> inflate(State, Opts);
 route(de, State, Opts) -> deflate(State, Opts).
 
-inflate(#zlib{input= <<>>, state=data} = Ctx, Opts) -> {more, Ctx};
+inflate(#zlib{input= <<>>, state=data} = Ctx, Opts) -> {more, 1, Ctx};
 inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} = Ctx, Opts) ->
   % parse code tree, parse compressed bytes
   %<<Btail:5/bits, Btype:2, Bfinal:1, Tail/binary>> = Enc,
   {Bfinal, Tail2} = read_bits(Enc, 1, [reverse_input_byte_order]),
   {BtypeR, Tail1} = read_bits(Tail2, 2, [reverse_input_byte_order]),
   Btype = flate_utils:reverse_int(BtypeR, 2),
-  {ok, This, NewTail, ReadLen} = inflate_block(int_to_btype(Btype), Tail1, Opts),
 
-  NewCtx = Ctx#zlib{
-    input=NewTail,
-    output=case Dec of
-      undefined -> This;
-      _ -> [This | Dec]
-    end,
-    write_count=(Wc + size(This)),
-    read_count=(Rc + ReadLen + 1)
-  },
+  case inflate_block(int_to_btype(Btype), Tail1, Opts) of
+    {ok, This, NewTail, ReadLen} ->
+      NewCtx = Ctx#zlib{
+        input=NewTail,
+        output=case Dec of
+          undefined -> This;
+          _ -> [This | Dec]
+        end,
+        write_count=(Wc + size(This)),
+        read_count=(Rc + ReadLen + 1)
+      },
 
-  case Bfinal of
-    0 -> inflate(NewCtx, Opts);
-    1 -> finalize(NewCtx, Opts)
+      case Bfinal of
+        0 -> inflate(NewCtx, Opts);
+        1 -> finalize(NewCtx, Opts)
+      end;
+    {more, Missing} ->
+      {more, Missing, Ctx}
   end.
 
 deflate(#zlib{input=Input} = Ctx, Opts) ->
@@ -107,6 +111,8 @@ finalize(#zlib{output=Out} = Ctx, Opts) ->
   {ok, iolist_to_binary(lists:reverse(Out)),
    Ctx#zlib{state=finalized, output=undefined}}.
 
+inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) andalso size(Data) < 4 ->
+  {more, 4-size(Data)};
 inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) ->
   % NOTE: Uncompressed blocks, RFC 1951 section 3.2.1:
   % > Any bits of input up to the next byte boundary are ignored.
@@ -146,6 +152,7 @@ inflate_block(huffman_dyn, HLIT, <<HDIST:5, HCLEN:4, Data/binary>>) ->
 inflate_symbols(Huffman, Data) -> inflate_symbols(Huffman, Data, [], 0).
 inflate_symbols(Huffman, Data, Symbols, BitCount) ->
   case flate_huffman:get_symbol(Huffman, Data) of
+    {error, insufficient_data} -> {more, 1};
     {ok, {Len, _, 256}, Tail} ->
       {ok, list_to_binary(lists:reverse(Symbols)), Tail,
 	   (BitCount + Len) div 8 + case BitCount + Len rem 8 of 0 -> 0; _ -> 1 end};
