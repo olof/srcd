@@ -49,10 +49,12 @@ Name(Data, Opts) -> Name(#zlib{op=Name, input=Data}, Opts)).
 de(Data) -> de(Data, []).
 ?op(de).
 
-in(State = #zlib{input=De}, Data, Opts) when is_list(De) ->
-  inflate(State#zlib{input=lists:reverse([Data | De])}, Opts);
+in(State = #zlib{input=De}, Data, Opts) when is_list(Data) ->
+  Chunk = list_to_binary(Data),
+  inflate(State#zlib{input= <<De/binary, Chunk/binary>>}, Opts);
 in(State = #zlib{input=De}, Data, Opts) ->
-  inflate(State#zlib{input=[De, Data]}, Opts).
+  inflate(State#zlib{input= <<De/binary, Data/binary>>}, Opts).
+in(Data) when is_list(Data) -> in(list_to_binary(Data), []);
 in(Data) -> in(Data, []).
 ?op(in).
 

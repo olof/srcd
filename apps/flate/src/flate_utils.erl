@@ -21,8 +21,12 @@ read_bits(Data, Count, Opts) ->
   case {Count, Data} of
     {0, Bin} when is_binary(Bin) ->
       {0, {<<>>, Data}};
+
     {0, _} ->
       {0, Data};
+
+    {_, Data} when is_list(Data) ->
+      read_bits({<<>>, list_to_binary(Data)}, Count, Opts);
 
     {Count, Data} when is_bitstring(Data) ->
       read_bits({<<>>, Data}, Count, Opts);
@@ -33,6 +37,9 @@ read_bits(Data, Count, Opts) ->
     {Count, {Bits1, Bin}} when bit_size(Bits1) >= Count ->
       <<Bits:Count, BitsTail/bits>> = Bits1,
       {Bits, {BitsTail, Bin}};
+
+    {_, {Bits, Data}} when is_list(Data) ->
+      read_bits({Bits, list_to_binary(Data)}, Count, Opts);
 
     {Count, {Bits, Bin}} when bit_size(Bits) < Count ->
       Buflen = bit_size(Bits),   % the buffel in the room
