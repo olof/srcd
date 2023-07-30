@@ -50,9 +50,9 @@ de(Data) -> de(Data, []).
 ?op(de).
 
 in(State = #zlib{input=De}, Data, Opts) when is_list(De) ->
-  deflate(State#zlib{input=lists:reverse([Data | De])}, Opts);
+  inflate(State#zlib{input=lists:reverse([Data | De])}, Opts);
 in(State = #zlib{input=De}, Data, Opts) ->
-  deflate(State#zlib{input=[De, Data]}, Opts).
+  inflate(State#zlib{input=[De, Data]}, Opts).
 in(Data) -> in(Data, []).
 ?op(in).
 
