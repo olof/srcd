@@ -9,6 +9,7 @@
   read_command/1,
   process_command/1,
   process_lines/1,
+  build_packfile/1,
   wait_for_input/1,
   ls_refs/1
 ]).
@@ -53,8 +54,8 @@ process_lines({Session = #session{}, Args}) ->
   Wants = proplists:get_all_values(want, Args),
   Haves = proplists:get_all_values(have, Args),
   case proplists:get_bool(done, Args) of
-    true -> fetch_packfile(Repo, Wants, Haves);
-    false -> fetch_ack(Data, Repo, Wants, Haves)
+    true -> {next_state, build_packfile, {Session, Wants, Haves}};
+    false -> fetch_ack(Session, Wants, Haves)
   end.
 
 parse_line("done") -> done;
@@ -64,7 +65,7 @@ parse_line(Line) ->
     Oid -> {want, Oid}
   end.
 
-fetch_packfile(Repo, Wants, Haves) ->
+build_packfile({#session{repo=Repo} = Session, Wants, Haves}) ->
   ?LOG_NOTICE("Creating pack on ~p:~n    Haves: ~p~n    Wants: ~p",
               [Repo, Haves, Wants]),
   % TODO: In default v0 mode, we don't even length prefix the
@@ -74,19 +75,18 @@ fetch_packfile(Repo, Wants, Haves) ->
   % should add support for the optional side-band capabilities.
   {ok, Packfile} = srcd_packfile:build(Repo, Haves, Wants).
 
-fetch_ack(Data, Repo, Wants, Haves) ->
+fetch_ack(#session{repo=Repo} = Session, Wants, Haves) ->
   case Haves of
     [] ->
-      {ok, Packfile} = fetch_packfile(Repo, Wants, Haves),
       {ok, Acks} = srcd_pack:build_pkt(["NAK\n"]),
       ?LOG_NOTICE("nak sent for initial clone, going for it"),
-      {ok, Acks ++ Packfile};
+      {next_state, build_packfile, Acks, {Session, Wants, Haves}};
     Haves ->
       {ok, Acks} = srcd_pack:build_pkt(lists:concat([
         [ack_oid(Repo, Oid) || Oid <- Wants],
         [flush]
       ])),
-      {next_state, read_command, Acks, Data}
+      {next_state, read_command, Acks, Session}
   end.
 
 has_all_oids(Repo, []) -> true;
