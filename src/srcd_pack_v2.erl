@@ -81,7 +81,7 @@ fetch({#session{repo=Repo} = Data, Caps, Args}) ->
   end.
 
 fetch_packfile(Repo, Wants, Haves) ->
-  {ok, Data} = srcd_packfile:build(Repo, Wants),
+  {ok, Data} = srcd_packfile:build(Repo, Haves, Wants),
   PackLines = [
     [1 | D] || D <-
       srcd_pack:line_split(srcd_pack:max_data_len() - 1, Data)
