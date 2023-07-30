@@ -86,12 +86,8 @@ fetch_packfile(Repo, Wants, Haves) ->
     [1 | D] || D <-
       srcd_pack:line_split(srcd_pack:max_data_len() - 1, Data)
   ],
-  ?LOG_NOTICE("Successfully constructed packfile of size ~p (~p lines): ~p",
-              [length(Data),
-               length(PackLines),
-               lists:sublist(Data, 256) ++ ['...']]),
-  %?LOG_NOTICE("Successfully constructed packfile of size ~p: ~p",
-  %            [length(Data), Data]),
+  ?LOG_NOTICE("Successfully constructed packfile of size ~p (~p lines)",
+              [length(Data), length(PackLines)]),
   srcd_pack:build_pkt(lists:concat([
     ["packfile\n"],
     [[2 | "ok this is happening\n"]],
