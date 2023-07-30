@@ -5,7 +5,7 @@
 % This module tries to implement RFC 1951, to be able to support
 % inflating compressed objects.
 
--export([in/1, in/2, de/1, tail/1, stats/1]).
+-export([in/1, in/2, in/3, de/1, tail/1, stats/1]).
 
 -include_lib("kernel/include/logger.hrl").
 
