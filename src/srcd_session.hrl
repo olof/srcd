@@ -6,4 +6,9 @@
 -include_lib("eunit/include/eunit.hrl").
 -endif.
 
--record(session, {repo, opts=[], version=0}).
+-record(session, {
+  repo,
+  opts=[],
+  version=0,
+  caps=[]
+}).

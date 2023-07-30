@@ -38,11 +38,10 @@ handshake(Data) ->
   ]),
   {next_state, read_command, Greeting, Data}.
 
-wait_for_input(Data) -> wait_for_input(Data, [], []).
-wait_for_input(Data, Res, Caps0) ->
+wait_for_input(Data = #session{}) -> wait_for_input(Data, [], []).
+wait_for_input(Data = #session{}, Res, Caps0) ->
   case srcd_pack:read_line() of
-    flush -> {next_state, process_lines, {Data,
-                                          lists:reverse(Caps0),
+    flush -> {next_state, process_lines, {Data#session{caps=lists:reverse(Caps0)},
                                           lists:reverse(Res)}};
     {data, Line2} ->
       Line1 = string:trim(Line2),
@@ -50,8 +49,7 @@ wait_for_input(Data, Res, Caps0) ->
       wait_for_input(Data, [parse_line(Line) | Res], Caps)
   end.
 
-process_lines({#session{repo=Repo} = Data, Caps, Args}) ->
-  ?LOG_NOTICE("Client args ~p (caps: ~p)", [Args, Caps]),
+process_lines({Session = #session{}, Args}) ->
   Wants = proplists:get_all_values(want, Args),
   Haves = proplists:get_all_values(have, Args),
   case proplists:get_bool(done, Args) of
