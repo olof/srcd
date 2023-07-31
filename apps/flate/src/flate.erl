@@ -161,9 +161,6 @@ inflate_block(huffman_dyn, Data, _Opts) ->
 
   % The literal/length symbol 256 (end of data),
   %    encoded using the literal/length Huffman code
-
-  % TODO: maybe i forgot to do byte accounting on this?
-  % TODO: codetree doesn't exist. So there's that.
   {ok, Codes, D} = flate_huffman:codetree(dynamic, {InitialBits, BinTail}),
   ?LOG_NOTICE("CODES=~p", [Codes]),
   inflate_symbols(Codes, D).
@@ -172,11 +169,17 @@ inflate_symbols(Huffman, Data) -> inflate_symbols(Huffman, Data, [], 0).
 inflate_symbols(Huffman, Data, Symbols, BitCount) ->
   case flate_huffman:get_symbol(Huffman, Data) of
     {error, insufficient_data} -> {more, 1};
+
     {ok, {Len, _, 256}, Tail} ->
       {ok, list_to_binary(lists:reverse(Symbols)), Tail,
-	   (BitCount + Len) div 8 + case BitCount + Len rem 8 of 0 -> 0; _ -> 1 end};
+	     (BitCount + Len) div 8 + case BitCount + Len rem 8 of
+         0 -> 0;
+         _ -> 1
+       end};
+
     {ok, {Len, Code, Symbol}, Tail} when Symbol < 256 ->
       inflate_symbols(Huffman, Tail, [Symbol | Symbols], BitCount + Len);
+
     {ok, {Len, _, Code}, Tail1} ->
       ?LOG_NOTICE("INFLATE CODE=~p", [Code]),
       case decode_distance_pair(Huffman, Code, Tail1) of
