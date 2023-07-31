@@ -13,6 +13,7 @@ Name() ->
       Written = size(Output),
 
       [
+        ?_assertEqual({zlib, in, Tail, finalized, undefined, Read, Written}, Ctx),
         ?_assertEqual(Output, Result),
         ?_assertEqual(Tail, tail(Ctx)),
         ?_assertEqual({ok, [{read, Read}, {written, Written}]}, stats(Ctx))
