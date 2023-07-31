@@ -514,7 +514,7 @@ test_inflate_steps() ->
 
   % Repeat 2
   {ok, {8, 163, 285}, Tail5 = {<<>>, <<96, 20, 140, 2, 8, 0, 0>>}} = flate_huffman:get_symbol(Fixed, Tail4),
-  {258, 2, Tail6, 5} = decode_distance_pair(Fixed, 285, Tail5),
+  {258, 2, Tail6 = {<<6:3>>, <<20, 140, 2, 8, 0, 0>>}, 5} = decode_distance_pair(Fixed, 285, Tail5),
   MaxSubstr = clone_output([63, 63] ++ MaxSubstr, 2, 258),
 
   % Repeat 3
