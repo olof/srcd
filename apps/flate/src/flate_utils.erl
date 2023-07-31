@@ -122,11 +122,13 @@ read_bits_test_() -> [
 -endif.
 
 reverse_int(N, Bits) when is_bitstring(N) ->
+  ?LOG_NOTICE("REVERSE INT: ~p ~p", [N, Bits]),
   Bits = bit_size(N),
   RevBin = flate_utils:reverse_bits(N),
   <<Rev:Bits>> = RevBin,
   Rev;
 reverse_int(N, Bits) ->
+  ?LOG_NOTICE("REVERSE INT: ~p ~p", [N, Bits]),
   RevBin = flate_utils:reverse_bits(<<N:Bits>>),
   <<Rev:Bits>> = RevBin,
   Rev.

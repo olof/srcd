@@ -51,8 +51,10 @@ de(Data) -> de(Data, []).
 
 in(State = #zlib{input=De}, Data, Opts) when is_list(Data) ->
   Chunk = list_to_binary(Data),
+  ?LOG_NOTICE("Adding to zlib input: ~p -> ~p", [Data, [De, Chunk]]),
   inflate(State#zlib{input= <<De/binary, Chunk/binary>>}, Opts);
 in(State = #zlib{input=De}, Data, Opts) ->
+  ?LOG_NOTICE("Adding to zlib input: ~p -> ~p", [Data, [De, Data]]),
   inflate(State#zlib{input= <<De/binary, Data/binary>>}, Opts).
 in(Data) when is_list(Data) -> in(list_to_binary(Data), []);
 in(Data) -> in(Data, []).
@@ -66,11 +68,13 @@ route(de, State, Opts) -> deflate(State, Opts).
 
 inflate(#zlib{input= <<>>, state=data} = Ctx, Opts) -> {more, 1, Ctx};
 inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} = Ctx, Opts) ->
+  ?LOG_NOTICE("Ctx from the pov of flate: ~p", [Ctx]),
   % parse code tree, parse compressed bytes
   %<<Btail:5/bits, Btype:2, Bfinal:1, Tail/binary>> = Enc,
   {Bfinal, Tail2} = read_bits(Enc, 1, [reverse_input_byte_order]),
   {BtypeR, Tail1} = read_bits(Tail2, 2, [reverse_input_byte_order]),
   Btype = flate_utils:reverse_int(BtypeR, 2),
+  ?LOG_NOTICE("Bfinal: ~p~nBtype: ~p", [Bfinal, Btype]),
 
   case inflate_block(int_to_btype(Btype), Tail1, Opts) of
     {ok, This, NewTail, ReadLen} ->
@@ -114,6 +118,7 @@ finalize(#zlib{output=Out} = Ctx, Opts) ->
    Ctx#zlib{state=finalized, output=undefined}}.
 
 inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) andalso size(Data) < 4 ->
+  ?LOG_NOTICE("Missing ~p bytes for no_compression block", [4-size(Data)]),
   {more, 4-size(Data)};
 inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) ->
   % NOTE: Uncompressed blocks, RFC 1951 section 3.2.1:
@@ -122,11 +127,13 @@ inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) ->
   read_hook(Opts, <<Len:16, Nlen:16>>),
   % > LEN is the number of data bytes in the block.  NLEN is the
   % > one's complement of LEN.
+  ?LOG_NOTICE("Data: ~p~nData size: ~p~n Len: ~p~nNlen: ~p~nExpc: ~p", [Data, size(Data), Len, Nlen, 16#FFFF-Len]),
   Nlen = 16#FFFF - Len,
   <<Decoded:Len/bytes, Tail/binary>> = Payload,
   read_hook(Opts, Decoded),
   {ok, Decoded, Tail, Len + 4};
 inflate_block(huffman_fixed, {InitialBits, Data}, _Opts) ->
+  ?LOG_NOTICE("huffman_fixed: ~p", [{InitialBits, Data}]),
   inflate_symbols(flate_huffman:init(fixed()), {InitialBits, Data});
 inflate_block(huffman_dyn, <<>>, _Opts) ->
   {more, 2};
@@ -136,6 +143,7 @@ inflate_block(huffman_dyn, Bin, _Opts) when is_binary(Bin) andalso size(Bin) < 2
   {more, 1};
 inflate_block(huffman_dyn, Data, _Opts) ->
   {Bits, Tail1} = read_bits(Data, 9, [reverse_input_byte_order]),
+  ?LOG_NOTICE("Bits: ~p", [Bits]),
   <<HDIST:5, HCLEN:4>> = Bits,
   CodeLen = (HCLEN + 4) * 3,
   TrailBitLen = abs(8 - CodeLen) rem 8,
@@ -157,6 +165,7 @@ inflate_block(huffman_dyn, Data, _Opts) ->
   % TODO: maybe i forgot to do byte accounting on this?
   % TODO: codetree doesn't exist. So there's that.
   {ok, Codes, D} = flate_huffman:codetree(dynamic, {InitialBits, BinTail}),
+  ?LOG_NOTICE("CODES=~p", [Codes]),
   inflate_symbols(Codes, D).
 
 inflate_symbols(Huffman, Data) -> inflate_symbols(Huffman, Data, [], 0).
@@ -169,9 +178,11 @@ inflate_symbols(Huffman, Data, Symbols, BitCount) ->
     {ok, {Len, Code, Symbol}, Tail} when Symbol < 256 ->
       inflate_symbols(Huffman, Tail, [Symbol | Symbols], BitCount + Len);
     {ok, {Len, _, Code}, Tail1} ->
+      ?LOG_NOTICE("INFLATE CODE=~p", [Code]),
       case decode_distance_pair(Huffman, Code, Tail1) of
         {more, N} -> {more, N};
         {Length, Dist, Tail, Read} ->
+          ?LOG_NOTICE("INFLATE CODE LEN=~p DIST=~p", [Length, Dist]),
           case clone_output(lists:flatten(Symbols), Dist, Length) of
             {error, Reason} -> error({error, Reason});
             Output -> inflate_symbols(Huffman, Tail, [Output | Symbols],
@@ -198,7 +209,7 @@ inflate_symbols_test_() -> lists:concat([
 -endif.
 
 clone_output(Symbols, Dist, _) when Dist > length(Symbols) ->
-  {error, {deflate_distance_too_far_back, Dist}};
+  {error, {deflate_distance_too_far_back, Dist, length(Symbols)}};
 clone_output(Symbols, Dist, Length) ->
   {_, Buf} = lists:split(length(Symbols)-Dist, Symbols),
   clone_output(Buf, Length, [], []).
@@ -260,11 +271,15 @@ decode_distance(Data) ->
     {error, insufficient_data} -> {more, 1};
     {RevCode, Extras} ->
       Code = flate_utils:reverse_int(RevCode, 5),
+      ?LOG_NOTICE("CODE=~p", [Code]),
       Base = distance_base(Code),
+      ?LOG_NOTICE("BASE=~p", [Base]),
       {Code, ExtraBits} = distance_extra_bits(Code),
+      ?LOG_NOTICE("EXTRABITS=~p", [ExtraBits]),
       case read_bits(Extras, ExtraBits) of
         {error, insufficient_data} -> {more, 1};
         {Extra, Tail} ->
+          ?LOG_NOTICE("EXTRA=~p", [Extra]),
           {Base + flate_utils:b2i(Extra) + 1, Tail, 5 + ExtraBits}
       end
   end.
