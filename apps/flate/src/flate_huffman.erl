@@ -56,7 +56,7 @@ get_symbol(Codes, {OldLen, Cand}, Data) ->
   case flate_utils:read_bits(Data, 1, [reverse_input_byte_order]) of
     {error, insufficient_data} = Err -> Err;
     {Bit, Tail} ->
-      Code = Cand bsl 1 + Bit,
+      Code = Cand bsl 1 + flate_utils:b2i(Bit),
       case lists:keyfind({Len, Code}, 2, Codes) of
         false              -> get_symbol(Codes, {Len, Code}, Tail);
         %{Val, {Len, Code}} -> {ok, {Len, flate_utils:reverse_int(Code, Len), Val}, Tail}

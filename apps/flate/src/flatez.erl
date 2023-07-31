@@ -38,9 +38,8 @@
 in(Data)       -> in(Data, []).
 in(Data, Opts) ->
   ReadHook = proplists:get_value(read_hook, Opts, fun (_) -> ok end),
-  {HDRVal, Tail} = flate_utils:read_bits(Data, 16, [{read_hook, ReadHook}]),
-  0 = HDRVal rem 31,
-  HDR = <<HDRVal:16>>,
+  {HDR, Tail} = flate_utils:read_bits(Data, 16, [{read_hook, ReadHook}]),
+  0 = flate_utils:b2i(HDR) rem 31,
 
   % deflate is 8, and only thing we support.
   <<CMF:1/binary, FLG:1/binary>> = HDR,

@@ -265,7 +265,7 @@ decode_distance(Data) ->
       case read_bits(Extras, ExtraBits) of
         {error, insufficient_data} -> {more, 1};
         {Extra, Tail} ->
-          {Base + Extra + 1, Tail, 5 + ExtraBits}
+          {Base + flate_utils:b2i(Extra) + 1, Tail, 5 + ExtraBits}
       end
   end.
 

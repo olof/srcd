@@ -1,5 +1,5 @@
 -module(flate_utils).
--export([read_bits/2, read_bits/3, read_hook/2, reverse_int/2, reverse_byte/1, reverse_bits/1]).
+-export([b2i/1, read_bits/2, read_bits/3, read_hook/2, reverse_int/2, reverse_byte/1, reverse_bits/1]).
 
 -include_lib("kernel/include/logger.hrl").
 
@@ -20,10 +20,10 @@ read_bits(Data, Count) ->
 read_bits(Data, Count, Opts) ->
   case {Count, Data} of
     {0, Bin} when is_binary(Bin) ->
-      {0, {<<>>, Data}};
+      {<<0:0>>, {<<>>, Data}};
 
     {0, _} ->
-      {0, Data};
+      {<<0:0>>, Data};
 
     {_, Data} when is_list(Data) ->
       read_bits({<<>>, list_to_binary(Data)}, Count, Opts);
@@ -35,7 +35,7 @@ read_bits(Data, Count, Opts) ->
       {error, insufficient_data};
 
     {Count, {Bits1, Bin}} when bit_size(Bits1) >= Count ->
-      <<Bits:Count, BitsTail/bits>> = Bits1,
+      <<Bits:Count/bits, BitsTail/bits>> = Bits1,
       {Bits, {BitsTail, Bin}};
 
     {_, {Bits, Data}} when is_list(Data) ->
@@ -104,16 +104,16 @@ fill_bits(Bits, Stream, Opts) when is_port(Stream) ->
 
 read_bits_test_() -> [
   ?_assertEqual({Out, Tail}, read_bits(In, Len, Opts)) || {In, Len, Opts, Out, Tail} <- [
-      {<<>>, 0, [], 0, {<<>>, <<>>}},
-      {<<"abc">>, 8, [], $a, {<<>>, <<"bc">>}},
-      {<<"abc">>, 4, [], 6, {<<1:4>>, <<"bc">>}},
-      {<<"abc">>, 12, [], 1558, {<<2:4>>, <<"c">>}},
+      {<<>>, 0, [], <<0:0>>, {<<>>, <<>>}},
+      {<<"abc">>, 8, [], <<$a:8>>, {<<>>, <<"bc">>}},
+      {<<"abc">>, 4, [], <<6:4>>, {<<1:4>>, <<"bc">>}},
+      {<<"abc">>, 12, [], <<1558:12>>, {<<2:4>>, <<"c">>}},
 
-      {{<<>>, <<"abc">>}, 12, [], 1558, {<<2:4>>, <<"c">>}},
-      {{<<4:3>>, <<2,8,0,0>>}, 7, [], 64, {<<2:4>>, <<8,0,0>>}},
+      {{<<>>, <<"abc">>}, 12, [], <<1558:12>>, {<<2:4>>, <<"c">>}},
+      {{<<4:3>>, <<2,8,0,0>>}, 7, [], <<64:7>>, {<<2:4>>, <<8,0,0>>}},
       {
         {<<13:5>>, <<183,31,5,163,96,20,140,2,8,0,0>>},
-        8, [reverse_input_byte_order], 111,
+        8, [reverse_input_byte_order], <<"o">>,
         {<<13:5>>, <<31,5,163,96,20,140,2,8,0,0>>}
       }
    ]
@@ -121,6 +121,11 @@ read_bits_test_() -> [
 
 -endif.
 
+reverse_int(N, Bits) when is_bitstring(N) ->
+  Bits = bit_size(N),
+  RevBin = flate_utils:reverse_bits(N),
+  <<Rev:Bits>> = RevBin,
+  Rev;
 reverse_int(N, Bits) ->
   RevBin = flate_utils:reverse_bits(<<N:Bits>>),
   <<Rev:Bits>> = RevBin,
