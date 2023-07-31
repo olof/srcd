@@ -147,8 +147,7 @@ inflate_block(huffman_dyn, Data, _Opts) ->
   <<HDIST:5, HCLEN:4>> = Bits,
   CodeLen = (HCLEN + 4) * 3,
   TrailBitLen = abs(8 - CodeLen) rem 8,
-  <<CodeAlphabet:CodeLen/bits, Tail/bits>> = Tail1,
-  <<InitialBits:TrailBitLen/bits, BinTail/binary>> = Tail,
+  {CodeAlphabet, Tail} = read_bits(Tail1, CodeLen),
   % HLIT + 257 code lengths for the literal/length alphabet,
   %  encoded using the code length Huffman code
 
@@ -161,7 +160,7 @@ inflate_block(huffman_dyn, Data, _Opts) ->
 
   % The literal/length symbol 256 (end of data),
   %    encoded using the literal/length Huffman code
-  {ok, Codes, D} = flate_huffman:codetree(dynamic, {InitialBits, BinTail}),
+  {ok, Codes, D} = flate_huffman:codetree(dynamic, Tail),
   ?LOG_NOTICE("CODES=~p", [Codes]),
   inflate_symbols(Codes, D).
 
