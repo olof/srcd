@@ -50,11 +50,7 @@ maxv([{_, V}|T], Max) when V > Max -> maxv(T, V);
 maxv([{_, _}|T], Max) -> maxv(T, Max);
 maxv([], Max) -> Max.
 
-get_symbol(Codes, Data) ->
-  {ok, {NewLen, NewCode, Val}, Tail} = get_symbol(Codes, {0, 0}, Data),
-  %{ok, {NewLen, flate_utils:reverse_int(NewCode, NewLen), Val}, Tail}.
-  {ok, {NewLen, NewCode, Val}, Tail}.
-
+get_symbol(Codes, Data) -> get_symbol(Codes, {0, 0}, Data).
 get_symbol(Codes, {OldLen, Cand}, Data) ->
   Len = OldLen + 1,
   case flate_utils:read_bits(Data, 1, [reverse_input_byte_order]) of

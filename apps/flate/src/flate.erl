@@ -128,10 +128,18 @@ inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) ->
   {ok, Decoded, Tail, Len + 4};
 inflate_block(huffman_fixed, {InitialBits, Data}, _Opts) ->
   inflate_symbols(flate_huffman:init(fixed()), {InitialBits, Data});
-inflate_block(huffman_dyn, HLIT, <<HDIST:5, HCLEN:4, Data/binary>>) ->
+inflate_block(huffman_dyn, <<>>, _Opts) ->
+  {more, 2};
+inflate_block(huffman_dyn, {InitialBits, <<>>}, _Opts) when bit_size(InitialBits) < 9 ->
+  {more, 1};
+inflate_block(huffman_dyn, Bin, _Opts) when is_binary(Bin) andalso size(Bin) < 2 ->
+  {more, 1};
+inflate_block(huffman_dyn, Data, _Opts) ->
+  {Bits, Tail1} = read_bits(Data, 9, [reverse_input_byte_order]),
+  <<HDIST:5, HCLEN:4>> = Bits,
   CodeLen = (HCLEN + 4) * 3,
   TrailBitLen = abs(8 - CodeLen) rem 8,
-  <<CodeAlphabet:CodeLen/bits, Tail/bits>> = Data,
+  <<CodeAlphabet:CodeLen/bits, Tail/bits>> = Tail1,
   <<InitialBits:TrailBitLen/bits, BinTail/binary>> = Tail,
   % HLIT + 257 code lengths for the literal/length alphabet,
   %  encoded using the code length Huffman code
@@ -161,11 +169,14 @@ inflate_symbols(Huffman, Data, Symbols, BitCount) ->
     {ok, {Len, Code, Symbol}, Tail} when Symbol < 256 ->
       inflate_symbols(Huffman, Tail, [Symbol | Symbols], BitCount + Len);
     {ok, {Len, _, Code}, Tail1} ->
-      {Length, Dist, Tail, Read} = decode_distance_pair(Huffman, Code, Tail1),
-      case clone_output(lists:flatten(Symbols), Dist, Length) of
-        {error, Reason} -> error({error, Reason});
-        Output -> inflate_symbols(Huffman, Tail, [Output | Symbols],
-                                  BitCount + Len + Read)
+      case decode_distance_pair(Huffman, Code, Tail1) of
+        {more, N} -> {more, N};
+        {Length, Dist, Tail, Read} ->
+          case clone_output(lists:flatten(Symbols), Dist, Length) of
+            {error, Reason} -> error({error, Reason});
+            Output -> inflate_symbols(Huffman, Tail, [Output | Symbols],
+                                      BitCount + Len + Read)
+          end
       end
   end.
 
@@ -224,23 +235,39 @@ clone_output_test_() -> [
 -endif.
 
 decode_distance_pair(Huffman, Code, Data) ->
-  {Length, LengthTail, BitsRead1} = decode_distance_len(Code, Data),
-  {Distance, DistanceTail, BitsRead2} = decode_distance(LengthTail),
-  {Length, Distance, DistanceTail, BitsRead1 + BitsRead2}.
+  case decode_distance_len(Code, Data) of
+    {more, N} -> {more, N};
+    {Length, LengthTail, BitsRead1} ->
+      case decode_distance(LengthTail) of
+        {more, N} -> {more, N};
+        {Distance, DistanceTail, BitsRead2} ->
+          {Length, Distance, DistanceTail, BitsRead1 + BitsRead2}
+      end
+  end.
 
 decode_distance_len(Code, Data) ->
   {ExtraBits, Len} = distance_code_length(Code),
-  {Extra, Tail} = read_bits(Data, ExtraBits),
-  %{((Len bsl ExtraBits) + Extra, Tail, ExtraBits}.
-  {Len + flate_utils:reverse_int(Extra, ExtraBits), Tail, ExtraBits}.
+  case read_bits(Data, ExtraBits) of
+    % TODO: improve {more, 1} to calculate how many bytes we should read
+    {error, insufficient_data} -> {more, 1};
+    %                 {((Len bsl ExtraBits) + Extra, Tail, ExtraBits}.
+    {Extra, Tail} -> {Len + flate_utils:reverse_int(Extra, ExtraBits),
+                      Tail, ExtraBits}
+  end.
 
 decode_distance(Data) ->
-  {RevCode, Extras} = read_bits(Data, 5, [reverse_input_byte_order]),
-  Code = flate_utils:reverse_int(RevCode, 5),
-  Base = distance_base(Code),
-  {Code, ExtraBits} = distance_extra_bits(Code),
-  {Extra, Tail} = read_bits(Extras, ExtraBits),
-  {Base + Extra + 1, Tail, 5 + ExtraBits}.
+  case read_bits(Data, 5, []) of
+    {error, insufficient_data} -> {more, 1};
+    {RevCode, Extras} ->
+      Code = flate_utils:reverse_int(RevCode, 5),
+      Base = distance_base(Code),
+      {Code, ExtraBits} = distance_extra_bits(Code),
+      case read_bits(Extras, ExtraBits) of
+        {error, insufficient_data} -> {more, 1};
+        {Extra, Tail} ->
+          {Base + Extra + 1, Tail, 5 + ExtraBits}
+      end
+  end.
 
 fixed() ->
   % Literal value    Bits                 Codes
