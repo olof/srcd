@@ -71,12 +71,18 @@ inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} 
   ?LOG_NOTICE("Ctx from the pov of flate: ~p", [Ctx]),
   % parse code tree, parse compressed bytes
   %<<Btail:5/bits, Btype:2, Bfinal:1, Tail/binary>> = Enc,
-  {Bfinal, Tail2} = read_bits(Enc, 1, [reverse_input_byte_order]),
-  {BtypeR, Tail1} = read_bits(Tail2, 2, [reverse_input_byte_order]),
-  Btype = flate_utils:reverse_int(BtypeR, 2),
+  {Byte, Tail1} = read_bits(Enc, 8, []),
+  <<Bits:5/bits, Btype:2, Bfinal:1>> = Byte,
+  ?LOG_NOTICE("Bits: ~p~nTail1: ~p", [Bits, Tail1]),
+
+  Tail = case Tail1 of
+    {B, Bin} -> {<<Bits/bits, B/bits>>, Bin};
+    Bin -> {Bits, Bin}
+  end,
+
   ?LOG_NOTICE("Bfinal: ~p~nBtype: ~p", [Bfinal, Btype]),
 
-  case inflate_block(int_to_btype(Btype), Tail1, Opts) of
+  case inflate_block(int_to_btype(Btype), Tail, Opts) of
     {ok, This, NewTail, ReadLen} ->
       NewCtx = Ctx#zlib{
         input=NewTail,
