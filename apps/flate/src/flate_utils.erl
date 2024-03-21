@@ -1,3 +1,6 @@
+% ex:ts=2:sw=2:sts=2:et
+% -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
+
 -module(flate_utils).
 -export([b2i/1, read_bits/2, read_bits/3, read_hook/2, reverse_int/2, reverse_byte/1, reverse_bits/1]).
 
