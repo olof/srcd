@@ -38,7 +38,7 @@
 in(Data)       -> in(Data, []).
 in(Data, Opts) ->
   ReadHook = proplists:get_value(read_hook, Opts, fun (_) -> ok end),
-  {HDR, Tail} = flate_utils:read_bits(Data, 16, [{read_hook, ReadHook}]),
+  <<HDR:2/binary, Tail/binary>> = Data,
   0 = flate_utils:b2i(HDR) rem 31,
 
   % deflate is 8, and only thing we support.
@@ -51,19 +51,29 @@ in(Data, Opts) ->
   Win = crypto:mod_pow(2, CINFO + 8, 16#7fff),
   % TODO: need to pass Win to flate:in
   %io:format(standard_error, "zlib tail: ~.2B~n", [Tail]),
-  case flate:in(Tail, Opts) of
-    {more, Ctx} -> {more, Ctx};
+  case flate:in(#zlib{op=in, read_count=2}, Tail, Opts) of
+    {more, Bytes, Ctx} -> {more, Bytes, Ctx};
     {ok, Res, Ctx} -> finalize(Res, Ctx)
   end.
-in(Ctx, Data, Opts) -> flate:in(Ctx, Data, Opts).
+in(#zlib{state=finalized, output=Res} = Ctx, Data, Opts) ->
+  finalize(Res, Ctx#zlib{input=Data, output=undefined});
+in(Ctx, Data, Opts) ->
+  case flate:in(Ctx, Data, Opts) of
+    {more, Bytes, NewCtx} ->
+      {more, Bytes, NewCtx};
+    {ok, Res, NewCtx} ->
+      finalize(Res, NewCtx)
+  end.
 de(Data) -> flate:de(Data).
 tail(Ctx) -> flate:tail(Ctx).
 stats(Ctx) -> flate:stats(Ctx).
 
-finalize(Res, #zlib{input= <<Checksum:32, Tail/binary>>,
-		    read_count=Rc} = Ctx) ->
+finalize(Res, #zlib{input=Input} = Ctx) when size(Input) < 4 ->
+  {more, 4-size(Input), Ctx#zlib{output=Res}};
+finalize(Res, #zlib{input= <<Checksum:32/bits, Tail/binary>>,
+                    read_count=Rc} = Ctx) ->
   {flate_adler32:check(Res, Checksum), Res,
-   Ctx#zlib{read_count=Rc+6, input=Tail}}.
+   Ctx#zlib{read_count=Rc+4, input=Tail}}.
 
 -ifdef(TEST).
 ?check_full_inflate(zopfli_empty_inflation_test_,

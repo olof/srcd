@@ -65,10 +65,9 @@ route(de, State, Opts) -> deflate(State, Opts).
 inflate(#zlib{input= <<>>, state=data} = Ctx, Opts) -> {more, 1, Ctx};
 inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} = Ctx, Opts) ->
   % parse code tree, parse compressed bytes
-  %<<Btail:5/bits, Btype:2, Bfinal:1, Tail/binary>> = Enc,
-  {Byte, Tail1} = read_bits(Enc, 8, []),
-  <<Bits:5/bits, Btype:2, Bfinal:1>> = Byte,
-  ?LOG_NOTICE("Bits: ~p~nTail1: ~p", [Bits, Tail1]),
+  {Byte, Tail1} = read_bits(Enc, 8, [reverse_input_byte_order]),
+  <<Bfinal:1, BtypeR:2, Bits:5/bits>> = Byte,
+  Btype = flate_utils:reverse_int(BtypeR, 2),
 
   Tail = case Tail1 of
     {B, Bin} -> {<<Bits/bits, B/bits>>, Bin};
@@ -131,34 +130,49 @@ inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) ->
   {ok, Decoded, Tail, Len + 4};
 inflate_block(huffman_fixed, {InitialBits, Data}, _Opts) ->
   inflate_symbols(flate_huffman:init(fixed()), {InitialBits, Data});
-inflate_block(huffman_dyn, <<>>, _Opts) ->
-  {more, 2};
-inflate_block(huffman_dyn, {InitialBits, <<>>}, _Opts) when bit_size(InitialBits) < 9 ->
-  {more, 1};
-inflate_block(huffman_dyn, Bin, _Opts) when is_binary(Bin) andalso size(Bin) < 2 ->
-  {more, 1};
-inflate_block(huffman_dyn, Data, _Opts) ->
-  {Bits, Tail1} = read_bits(Data, 9, [reverse_input_byte_order]),
-  ?LOG_NOTICE("Bits: ~p", [Bits]),
-  <<HDIST:5, HCLEN:4>> = Bits,
+inflate_block(huffman_dyn, Bin, _Opts)
+  when is_binary(Bin)
+  andalso size(Bin) < 2 ->
+    {more, 2-size(Bin)};
+inflate_block(huffman_dyn, {InitialBits, Bin}, _Opts)
+  when bit_size(InitialBits) < 6
+  andalso size(Bin) < 2 ->
+    {more, 2-size(Bin)};
+inflate_block(huffman_dyn, {InitialBits, <<>>}, _Opts)
+  when bit_size(InitialBits) < 14 ->
+    {more, 1};
+inflate_block(huffman_dyn, {Bits, Tail}, Opts) when bit_size(Bits) < 14 ->
+  Missing = ((14-bit_size(Bits)-1) div 8 + 1) * 8,
+  <<AddBits:Missing/bits, Tail1/binary>> = Tail,
+  NewBits = <<Bits/bits, AddBits/bits>>,
+  inflate_block(huffman_dyn, {NewBits, Tail1}, Opts);
+inflate_block(huffman_dyn, {Bits, Tail1}, _Opts) ->
+  <<HLIT:5, HDIST:5, HCLEN:4, InitialBits/bits>> = Bits,
   CodeLen = (HCLEN + 4) * 3,
   TrailBitLen = abs(8 - CodeLen) rem 8,
-  {CodeAlphabet, Tail} = read_bits(Tail1, CodeLen),
-  % HLIT + 257 code lengths for the literal/length alphabet,
-  %  encoded using the code length Huffman code
 
-  % HDIST + 1 code lengths for the distance alphabet,
-  %    encoded using the code length Huffman code
+  case read_bits({InitialBits, Tail1}, CodeLen) of
+    {error, insufficient_data} -> {more, 1};
+    {CodeAlphabet, Tail} ->
+      % HLIT + 257 code lengths for the literal/length alphabet,
+      %  encoded using the code length Huffman code
 
-  % The actual compressed data of the block,
-  %    encoded using the literal/length and distance Huffman
-  %    codes
+      % HDIST + 1 code lengths for the distance alphabet,
+      %    encoded using the code length Huffman code
 
-  % The literal/length symbol 256 (end of data),
-  %    encoded using the literal/length Huffman code
-  {ok, Codes, D} = flate_huffman:codetree(dynamic, Tail),
-  ?LOG_NOTICE("CODES=~p", [Codes]),
-  inflate_symbols(Codes, D).
+      % The actual compressed data of the block,
+      %    encoded using the literal/length and distance Huffman
+      %    codes
+
+      % The literal/length symbol 256 (end of data),
+      %    encoded using the literal/length Huffman code
+
+      {ok, Dynamic} = flate_huffman:init(dynamic(CodeAlphabet)),
+      case inflate_symbols(Dynamic, Tail) of
+        {error, insufficient_data} -> {more, 1};
+        {ok, Codes, D} -> inflate_symbols(Codes, D)
+      end
+  end.
 
 inflate_symbols(Huffman, Data) -> inflate_symbols(Huffman, Data, [], 0).
 inflate_symbols(Huffman, Data, Symbols, BitCount) ->
@@ -276,7 +290,7 @@ decode_distance(Data) ->
       end
   end.
 
-fixed() ->
+dynamic(Data) ->
   % Literal value    Bits                 Codes
   % -------------------------------------------------------
   %       0 - 143     8         00110000 through  10111111   (48-191)
@@ -290,15 +304,35 @@ fixed() ->
     [{X, 8} || X <- lists:seq(280, 287)]
   ]).
 
-dynamic() ->
+alphabet() ->
+% 0 - 15: Represent code lengths of 0 - 15
+%     16: Copy the previous code length 3 - 6 times.
+%         The next 2 bits indicate repeat length
+%               (0 = 3, ... , 3 = 6)
+%            Example:  Codes 8, 16 (+2 bits 11),
+%                      16 (+2 bits 10) will expand to
+%                      12 code lengths of 8 (1 + 6 + 5)
+%     17: Repeat a code length of 0 for 3 - 10 times.
+%         (3 bits of length)
+%     18: Repeat a code length of 0 for 11 - 138 times
+%         (7 bits of length)
+  lists:concat([
+    [{X, 8} || X <- lists:seq(0, 143)],
+    [{X, 9} || X <- lists:seq(144, 255)],
+    [{X, 7} || X <- lists:seq(256, 279)],
+    [{X, 8} || X <- lists:seq(280, 287)]
+  ]).
+
+
+fixed() ->
   % Literal value    Bits                 Codes
   % -------------------------------------------------------
-  %       0 - 15     8         00110000 through  10111111
-  %           16     9        110010000 through 111111111
-  %           17     7          0000000 through   0010111
-  %     280 - 28     7         11000000 through  11000111
+  %       0 - 143     8         00110000 through  10111111   (48-191)
+  %     144 - 255     9        110010000 through 111111111  (400-511)
+  %     256 - 279     7          0000000 through   0010111    (0- 23)
+  %     280 - 287     8         11000000 through  11000111  (192-199)
   lists:concat([
-    [{X, 3} || X <- lists:seq(0, 15)],
+    [{X, 8} || X <- lists:seq(0, 143)],
     [{X, 9} || X <- lists:seq(144, 255)],
     [{X, 7} || X <- lists:seq(256, 279)],
     [{X, 8} || X <- lists:seq(280, 287)]
@@ -477,10 +511,11 @@ test_inflate_steps() ->
 
   %{ok, CodeMatch1, Tail1} = flate_huffman:get_symbol(Fixed, {flate_utils:reverse_bits(Btail), Tail0}),
   {ok, CodeMatch1, Tail1} = flate_huffman:get_symbol(Fixed, {<<13:5>>, Tail0}),
-  ?assertEqual({8, 246, $?}, CodeMatch1),
+
+  ?assertEqual({8, 111, $?}, CodeMatch1),
   ?assertEqual({<<13:5>>, <<31, 5, 163, 96, 20, 140, 2, 8, 0, 0>>}, Tail1),
 
-  {ok, {8, 246, $?}, Tail2} = flate_huffman:get_symbol(Fixed, Tail1),
+  {ok, {8, 111, $?}, Tail2} = flate_huffman:get_symbol(Fixed, Tail1),
 
   % ??? 24, i got it to 31
   ?assertEqual({<<24:5>>, <<5, 163, 96, 20, 140, 2, 8, 0, 0>>}, Tail2),
@@ -489,7 +524,8 @@ test_inflate_steps() ->
   ShortSubstr = lists:duplicate(6, $?),
 
   % Repeat 1
-  {ok, {8, 163, 285}, Tail3} = flate_huffman:get_symbol(Fixed, Tail2),
+  {ok, CodeMatch2, Tail3} = flate_huffman:get_symbol(Fixed, Tail2),
+  ?assertEqual({8, 197, 285}, CodeMatch2),
   ?assertEqual({<<0:5>>, Tail4 = <<163, 96, 20, 140, 2, 8, 0, 0>>}, Tail3),
   % head of the bin list is: 2#00000101
   % we steal the bits 101 (use them as lsb of code 197), and left is 00000.
@@ -497,22 +533,22 @@ test_inflate_steps() ->
   MaxSubstr = clone_output([63, 63], 2, 258),
 
   % Repeat 2
-  {ok, {8, 163, 285}, Tail5 = {<<>>, <<96, 20, 140, 2, 8, 0, 0>>}} = flate_huffman:get_symbol(Fixed, Tail4),
+  {ok, {8, 197, 285}, Tail5 = {<<>>, <<96, 20, 140, 2, 8, 0, 0>>}} = flate_huffman:get_symbol(Fixed, Tail4),
   {258, 2, Tail6 = {<<6:3>>, <<20, 140, 2, 8, 0, 0>>}, 5} = decode_distance_pair(Fixed, 285, Tail5),
   MaxSubstr = clone_output([63, 63] ++ MaxSubstr, 2, 258),
 
   % Repeat 3
-  {ok, {8, 163, 285}, Tail7} = flate_huffman:get_symbol(Fixed, Tail6),
+  {ok, {8, 197, 285}, Tail7} = flate_huffman:get_symbol(Fixed, Tail6),
   {258, 2, Tail8, 5} = decode_distance_pair(Fixed, 285, Tail7),
   MaxSubstr = clone_output([63, 63] ++ MaxSubstr ++ MaxSubstr, 2, 258),
 
   % Repeat 4
-  {ok, {8, 163, 285}, Tail9} = flate_huffman:get_symbol(Fixed, Tail8),
+  {ok, {8, 197, 285}, Tail9} = flate_huffman:get_symbol(Fixed, Tail8),
   {258, 2, Tail10, 5} = decode_distance_pair(Fixed, 285, Tail9),
   MaxSubstr = clone_output([63, 63] ++ MaxSubstr ++ MaxSubstr ++ MaxSubstr, 2, 258),
 
   % Repeat 5, shorter length
-  {ok, {7, 16, 260}, Tail11} = flate_huffman:get_symbol(Fixed, Tail10),
+  {ok, {7, 4, 260}, Tail11} = flate_huffman:get_symbol(Fixed, Tail10),
   {6, 2, Tail12, 5} = decode_distance_pair(Fixed, 260, Tail11),
   ShortSubstr = clone_output([63, 63] ++ MaxSubstr ++ MaxSubstr ++ MaxSubstr ++ MaxSubstr, 2, 6),
 
@@ -520,6 +556,12 @@ test_inflate_steps() ->
   ?assertEqual({<<0:5>>, <<0>>}, Tail12).
 
 inflate_steps_test_() -> [fun () -> test_inflate_steps() end].
+
+fixed_huffman_test_() ->
+  Fixed = flate_huffman:init(fixed()),
+  [
+    ?_assertEqual({ok, {8, $@+$0, $@}, {<<>>, <<>>}}, flate_huffman:get_symbol(Fixed, <<(flate_utils:reverse_int($@+$0, 8)):8>>))
+  ].
 
 -endif.
 
