@@ -122,7 +122,11 @@ test_blob(Buf, InitPos, Expect) ->
     {ok, GotLen, GotBlob, GotCompressed} -> {
       not_ok, {unexpected_read_size, [
         {blob, GotBlob},
-        {compressed_len, {{got, GotLen}, {expected, TestLen}}},
+        {compressed_len, {
+          {got, GotLen},
+          {expected, TestLen},
+          {diff, GotLen-TestLen}
+        }},
         {compressed, GotCompressed}
       ]}};
     X -> {not_ok, X}
