@@ -120,11 +120,10 @@ test_blob(Buf, InitPos, Expect) ->
   case inflate_reader({Reader, InitPos}) of
     {ok, TestLen, Blob, Expect} -> {ok, Blob};
     {ok, GotLen, GotBlob, GotCompressed} -> {
-      not_ok, {unexpected_result, [
+      not_ok, {unexpected_read_size, [
         {blob, GotBlob},
-        {compressed_len, {GotLen, GotLen - TestLen}},
+        {compressed_len, {{got, GotLen}, {expected, TestLen}}},
         {compressed, GotCompressed}
       ]}};
     X -> {not_ok, X}
   end.
-
