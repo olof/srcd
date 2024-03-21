@@ -51,14 +51,14 @@ maxv([], Max) -> Max.
 get_symbol(Codes, Data) -> get_symbol(Codes, {0, 0}, Data).
 get_symbol(Codes, {OldLen, Cand}, Data) ->
   Len = OldLen + 1,
-  case flate_utils:read_bits(Data, 1, [reverse_input_byte_order]) of
+  case flate_utils:read_bits(Data, 1, []) of
     {error, insufficient_data} = Err -> Err;
     {Bit, Tail} ->
       Code = Cand bsl 1 + flate_utils:b2i(Bit),
       case lists:keyfind({Len, Code}, 2, Codes) of
         false              -> get_symbol(Codes, {Len, Code}, Tail);
         %{Val, {Len, Code}} -> {ok, {Len, flate_utils:reverse_int(Code, Len), Val}, Tail}
-        {Val, {Len, Code}} -> {ok, {Len, flate_utils:reverse_int(Code, Len), Val}, Tail}
+        {Val, {Len, Code}} -> {ok, {Len, Code, Val}, Tail}
       end
   end.
 
@@ -92,7 +92,7 @@ get_symbols_test_() -> [
     {ok, SymbolMatch, Tail},
     get_symbol(Codes, Encoded)
   ) || {Codes, Encoded, SymbolMatch, Tail} <- [
-    {?TEST_ABCD_CODES,     {<<>>, <<1:8>>}, {2, flate_utils:reverse_int(2, 2), a}, {<<0:6>>, <<>>}}
+    {?TEST_ABCD_CODES,     {<<>>, <<1:8>>}, {2, 2, a}, {<<0:6>>, <<>>}}
     ,{?TEST_ABCDEFGH_CODES, {<<>>, <<2:8>>}, {3, 2, a}, {<<0:5>>, <<>>}}
   ]
 ].
@@ -114,14 +114,14 @@ t_tail(Len) ->
 get_symbols_abcd_test_() ->
   Codes = ?TEST_ABCD_CODES,
   [
-    ?_assertEqual({ok, {Len, flate_utils:reverse_int(Code, Len), Val}, t_tail(Len)},
+    ?_assertEqual({ok, {Len, Code, Val}, t_tail(Len)},
                   get_symbol(Codes, t_pack_code(Len, Code))) ||
         {Val, {Len, Code}} <- [hd(Codes)]
   ].
 
 get_symbols_abcdefgh_test_() -> [
   ?_assertEqual(
-    {ok, {Len, flate_utils:reverse_int(Code, Len), Val}, t_tail(Len)},
+    {ok, {Len, Code, Val}, t_tail(Len)},
     get_symbol(?TEST_ABCDEFGH_CODES, t_pack_code(Len, Code))) ||
       {Val, {Len, Code}} <- ?TEST_ABCDEFGH_CODES
 ].
