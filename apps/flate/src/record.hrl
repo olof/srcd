@@ -1,1 +1,1 @@
--record(zlib, {op, input, state=data, output=[], read_count=0, write_count=0}).
+-record(zlib, {op, input= <<>>, state=data, output=[], read_count=0, write_count=0}).
