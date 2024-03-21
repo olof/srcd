@@ -106,7 +106,7 @@ zlib_test_() -> [
     ?test("test", ?TEST_PACK, ?TEST_PACK_BLOB, ?TEST_PACK_BLOB_START)
   ]].
 
-test_reader(Buf, Pos, Len) ->
+string_reader(Buf, Pos, Len) ->
   case lists:split(Pos, Buf) of
     {_, []} -> eof;
     {_, Bytes} ->
@@ -115,7 +115,7 @@ test_reader(Buf, Pos, Len) ->
   end.
 
 test_blob(Buf, InitPos, Expect) ->
-  Reader = fun (Pos, Len) -> test_reader(Buf, Pos, Len) end,
+  Reader = fun (Pos, Len) -> string_reader(Buf, Pos, Len) end,
   TestLen = length(Expect),
   case inflate_reader({Reader, InitPos}) of
     {ok, TestLen, Blob, Expect} -> {ok, Blob};
