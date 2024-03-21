@@ -151,6 +151,22 @@ inflate_block(huffman_dyn, {Bits, Tail1}, _Opts) ->
   CodeLen = (HCLEN + 4) * 3,
   TrailBitLen = abs(8 - CodeLen) rem 8,
 
+  % Yes, the dynamic Huffman codes and extra bits are stored in the same order
+  % as the fixed Huffman codes. The tricky part is understanding how the
+  % Huffman codes are transmitted in the deflate stream header for each block.
+  % -- madler @ https://stackoverflow.com/a/10472789
+
+  % Calmarius wrote:
+  % > Actually the RFC is wrong with that statement. And I got bitten by this. The
+  % > extra bits must be read LSB first, like any other bit fields in the archive.
+  %
+  % you pull the bits out one at a time, then yes, the LSB is the first
+  % bit-sized value pulled (e.g. as above, for 14 you will get 0,1,1,1) - but
+  % if you pull the needed bits all at once (e.g. 14 is 1110), then only one
+  % value is pulled, and the LSB will be the last (i.e. least significant) bit
+  % in that value. With that understanding the RFC is correct. –
+  % mwfearnley (2017-2018)
+
   case read_bits({InitialBits, Tail1}, CodeLen) of
     {error, insufficient_data} -> {more, 1};
     {CodeAlphabet, Tail} ->
@@ -167,6 +183,7 @@ inflate_block(huffman_dyn, {Bits, Tail1}, _Opts) ->
       % The literal/length symbol 256 (end of data),
       %    encoded using the literal/length Huffman code
 
+      % Turns out, i can't find implementation for flate_huffman:codetree... Fun!
       {ok, Dynamic} = flate_huffman:init(dynamic(CodeAlphabet)),
       case inflate_symbols(Dynamic, Tail) of
         {error, insufficient_data} -> {more, 1};

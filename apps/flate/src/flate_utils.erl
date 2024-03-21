@@ -16,6 +16,17 @@ b2i(B) ->
   <<I:(bit_size(B))>> = B,
   I.
 
+%%%% LLM to the rescue??? I doubt it, but funny nontheless:
+%  Alice: Thank you for sharing the relevant code. I have reproduced your
+%  issue and found that the problem is indeed coming from the read_bits()
+%  function. Specifically, it's in the case where
+%     {Count, Bin} when bit_size(Bin) < Count
+%  is evaluated as true. The issue lies in how you're handling the remaining
+%  bits after reading a byte from the input stream. Instead of using
+%  reverse_byte() to flip the bytes, you can simply use <<reverse(Bin):8/bits>>
+%  to reverse the entire binary string. This will ensure that the bits are
+%  read in the correct order.
+%  TO FUTURE ME: ALL BUGS HAVE BEEN CONTAINED INTO THIS FUNCTION!
 read_bits(Data, Count) -> read_bits(Data, Count, []).
 read_bits(Data, Count, Opts) ->
   case {Count, Data} of
