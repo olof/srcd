@@ -8,8 +8,6 @@
 
 -define(SYMBOL_WIDTH, 2).
 
--include_lib("kernel/include/logger.hrl").
-
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
@@ -57,7 +55,6 @@ get_symbol(Codes, {OldLen, Cand}, Data) ->
     {error, insufficient_data} = Err -> Err;
     {Bit, Tail} ->
       Code = Cand bsl 1 + flate_utils:b2i(Bit),
-			?LOG_NOTICE("GET_SYMBOL CODE=~p", [Code]),
       case lists:keyfind({Len, Code}, 2, Codes) of
         false              -> get_symbol(Codes, {Len, Code}, Tail);
         %{Val, {Len, Code}} -> {ok, {Len, flate_utils:reverse_int(Code, Len), Val}, Tail}

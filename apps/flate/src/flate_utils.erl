@@ -4,8 +4,6 @@
 -module(flate_utils).
 -export([b2i/1, read_bits/2, read_bits/3, read_hook/2, reverse_int/2, reverse_byte/1, reverse_bits/1]).
 
--include_lib("kernel/include/logger.hrl").
-
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 -endif.
@@ -125,13 +123,11 @@ read_bits_test_() -> [
 -endif.
 
 reverse_int(N, Bits) when is_bitstring(N) ->
-  ?LOG_NOTICE("REVERSE INT: ~p ~p", [N, Bits]),
   Bits = bit_size(N),
   RevBin = flate_utils:reverse_bits(N),
   <<Rev:Bits>> = RevBin,
   Rev;
 reverse_int(N, Bits) ->
-  ?LOG_NOTICE("REVERSE INT: ~p ~p", [N, Bits]),
   RevBin = flate_utils:reverse_bits(<<N:Bits>>),
   <<Rev:Bits>> = RevBin,
   Rev.

@@ -7,8 +7,6 @@
 
 -export([in/1, in/2, in/3, de/1, tail/1, stats/1]).
 
--include_lib("kernel/include/logger.hrl").
-
 -ifdef(TEST).
 -export([fixed/0]).
 -endif.
@@ -51,10 +49,8 @@ de(Data) -> de(Data, []).
 
 in(State = #zlib{input=De}, Data, Opts) when is_list(Data) ->
   Chunk = list_to_binary(Data),
-  ?LOG_NOTICE("Adding to zlib input: ~p -> ~p", [Data, [De, Chunk]]),
   inflate(State#zlib{input= <<De/binary, Chunk/binary>>}, Opts);
 in(State = #zlib{input=De}, Data, Opts) ->
-  ?LOG_NOTICE("Adding to zlib input: ~p -> ~p", [Data, [De, Data]]),
   inflate(State#zlib{input= <<De/binary, Data/binary>>}, Opts).
 in(Data) when is_list(Data) -> in(list_to_binary(Data), []);
 in(Data) -> in(Data, []).
@@ -68,7 +64,6 @@ route(de, State, Opts) -> deflate(State, Opts).
 
 inflate(#zlib{input= <<>>, state=data} = Ctx, Opts) -> {more, 1, Ctx};
 inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} = Ctx, Opts) ->
-  ?LOG_NOTICE("Ctx from the pov of flate: ~p", [Ctx]),
   % parse code tree, parse compressed bytes
   %<<Btail:5/bits, Btype:2, Bfinal:1, Tail/binary>> = Enc,
   {Byte, Tail1} = read_bits(Enc, 8, []),
@@ -79,8 +74,6 @@ inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} 
     {B, Bin} -> {<<Bits/bits, B/bits>>, Bin};
     Bin -> {Bits, Bin}
   end,
-
-  ?LOG_NOTICE("Bfinal: ~p~nBtype: ~p", [Bfinal, Btype]),
 
   case inflate_block(int_to_btype(Btype), Tail, Opts) of
     {ok, This, NewTail, ReadLen} ->
@@ -124,7 +117,6 @@ finalize(#zlib{output=Out} = Ctx, Opts) ->
    Ctx#zlib{state=finalized, output=undefined}}.
 
 inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) andalso size(Data) < 4 ->
-  ?LOG_NOTICE("Missing ~p bytes for no_compression block", [4-size(Data)]),
   {more, 4-size(Data)};
 inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) ->
   % NOTE: Uncompressed blocks, RFC 1951 section 3.2.1:
@@ -133,13 +125,11 @@ inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) ->
   read_hook(Opts, <<Len:16, Nlen:16>>),
   % > LEN is the number of data bytes in the block.  NLEN is the
   % > one's complement of LEN.
-  ?LOG_NOTICE("Data: ~p~nData size: ~p~n Len: ~p~nNlen: ~p~nExpc: ~p", [Data, size(Data), Len, Nlen, 16#FFFF-Len]),
   Nlen = 16#FFFF - Len,
   <<Decoded:Len/bytes, Tail/binary>> = Payload,
   read_hook(Opts, Decoded),
   {ok, Decoded, Tail, Len + 4};
 inflate_block(huffman_fixed, {InitialBits, Data}, _Opts) ->
-  ?LOG_NOTICE("huffman_fixed: ~p", [{InitialBits, Data}]),
   inflate_symbols(flate_huffman:init(fixed()), {InitialBits, Data});
 inflate_block(huffman_dyn, <<>>, _Opts) ->
   {more, 2};
@@ -186,11 +176,9 @@ inflate_symbols(Huffman, Data, Symbols, BitCount) ->
       inflate_symbols(Huffman, Tail, [Symbol | Symbols], BitCount + Len);
 
     {ok, {Len, _, Code}, Tail1} ->
-      ?LOG_NOTICE("INFLATE CODE=~p", [Code]),
       case decode_distance_pair(Huffman, Code, Tail1) of
         {more, N} -> {more, N};
         {Length, Dist, Tail, Read} ->
-          ?LOG_NOTICE("INFLATE CODE LEN=~p DIST=~p", [Length, Dist]),
           case clone_output(lists:flatten(Symbols), Dist, Length) of
             {error, Reason} -> error({error, Reason});
             Output -> inflate_symbols(Huffman, Tail, [Output | Symbols],
@@ -279,15 +267,11 @@ decode_distance(Data) ->
     {error, insufficient_data} -> {more, 1};
     {RevCode, Extras} ->
       Code = flate_utils:reverse_int(RevCode, 5),
-      ?LOG_NOTICE("CODE=~p", [Code]),
       Base = distance_base(Code),
-      ?LOG_NOTICE("BASE=~p", [Base]),
       {Code, ExtraBits} = distance_extra_bits(Code),
-      ?LOG_NOTICE("EXTRABITS=~p", [ExtraBits]),
       case read_bits(Extras, ExtraBits) of
         {error, insufficient_data} -> {more, 1};
         {Extra, Tail} ->
-          ?LOG_NOTICE("EXTRA=~p", [Extra]),
           {Base + flate_utils:b2i(Extra) + 1, Tail, 5 + ExtraBits}
       end
   end.
