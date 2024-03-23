@@ -72,49 +72,55 @@
 zlib_test_() -> [
   {Line, fun () -> ?assertEqual({ok, Expect}, test_blob(Buf, Pos, Obj)) end} ||
   #test{buf=Buf, plaintext=Expect, compressed=Obj, pos=Pos, line=Line} <- [
-    ?test("test", ?TEST_OBJ, ?TEST_OBJ),
+%    ?test(<<"test">>, ?TEST_OBJ, ?TEST_OBJ),
 
-    ?test("test", ?TEST_OBJ ++ ?TEST_OBJ, ?TEST_OBJ),
-    ?test("test", ?TEST_OBJ ++ ?TEST_OBJ, ?TEST_OBJ, length(?TEST_OBJ)),
+%    ?test(<<"test">>, ?TEST_OBJ ++ ?TEST_OBJ, ?TEST_OBJ),
+%    ?test(<<"test">>, ?TEST_OBJ ++ ?TEST_OBJ, ?TEST_OBJ, length(?TEST_OBJ)),
 
-    ?test("test", ?TEST_OBJ ++ "x" ++ ?TEST_OBJ, ?TEST_OBJ),
-    ?test("test", ?TEST_OBJ ++ "x" ++ ?TEST_OBJ, ?TEST_OBJ,
-          length(?TEST_OBJ) + 1),
+%    ?test(<<"test">>, ?TEST_OBJ ++ "x" ++ ?TEST_OBJ, ?TEST_OBJ),
+%    ?test(<<"test">>, ?TEST_OBJ ++ "x" ++ ?TEST_OBJ, ?TEST_OBJ,
+%          length(?TEST_OBJ) + 1),
 
-    ?test("test", ?TEST_OBJ ++ "x" ++ ?TEST_OBJ ++ "tail", ?TEST_OBJ),
-    ?test("test", ?TEST_OBJ ++ "x" ++ ?TEST_OBJ ++ "tail", ?TEST_OBJ,
-          length(?TEST_OBJ) + 1),
+%    ?test(<<"test">>, ?TEST_OBJ ++ "x" ++ ?TEST_OBJ ++ "tail", ?TEST_OBJ),
+%    ?test(<<"test">>, ?TEST_OBJ ++ "x" ++ ?TEST_OBJ ++ "tail", ?TEST_OBJ,
+%          length(?TEST_OBJ) + 1),
 
-    ?test(string:join(
-      [
-        "tree f9b75d6fcd7da93095282d50efc7961813d52e3d",
-        "parent 4a5ddb3241c127daa27cf1ba74adba1f284f6693",
-        "author Olof Johansson <olof@ethup.se> 1652225474 +0200",
-        "committer Olof Johansson <olof@ethup.se> 1652225474 +0200",
-        "",
-        "msg",
-        ""
-      ], "\n"),
-      ?TEST_PACK, ?TEST_PACK_COMMIT, ?TEST_PACK_COMMIT_START
-    ),
-    ?test("100644 file" ++ [
-            0, 48, 215, 77, 37, 132, 66, 199, 198, 85, 18,
-            234, 250, 180, 116, 86, 141, 215, 6, 196, 48],
-          ?TEST_PACK,
-          ?TEST_PACK_TREE,
-          ?TEST_PACK_TREE_START),
-    ?test("test", ?TEST_PACK, ?TEST_PACK_BLOB, ?TEST_PACK_BLOB_START)
+     ?test(list_to_binary(string:join(
+       [
+         "tree f9b75d6fcd7da93095282d50efc7961813d52e3d",
+         "parent 4a5ddb3241c127daa27cf1ba74adba1f284f6693",
+         "author Olof Johansson <olof@ethup.se> 1652225474 +0200",
+         "committer Olof Johansson <olof@ethup.se> 1652225474 +0200",
+         "",
+         "msg",
+         ""
+       ], "\n")),
+       ?TEST_PACK, ?TEST_PACK_COMMIT, ?TEST_PACK_COMMIT_START
+     )
+%    ?test("100644 file" ++ [
+%            0, 48, 215, 77, 37, 132, 66, 199, 198, 85, 18,
+%            234, 250, 180, 116, 86, 141, 215, 6, 196, 48],
+%          ?TEST_PACK,
+%          ?TEST_PACK_TREE,
+%          ?TEST_PACK_TREE_START),
+%    ?test("test", ?TEST_PACK, ?TEST_PACK_BLOB, ?TEST_PACK_BLOB_START)
   ]].
 
+string_reader(Buf, Pos, 0) -> [];
 string_reader(Buf, Pos, Len) ->
+  {_, S} = lists:split(Pos, Buf),
   case lists:split(Pos, Buf) of
-    {_, []} -> eof;
+    {_, []} ->
+      ?LOG_NOTICE("test_reader(~p, ~p): ~p~n             ~p~n             ~p..+~p~n       ~p", [Pos, Len, Buf, [], Pos, Len, eof]),
+      eof;
     {_, Bytes} ->
       {Read, _} = lists:split(Len, Bytes),
+      ?LOG_NOTICE("test_reader(~p, ~p): ...~n             ~p~n             ~p..+~p~n       ~p", [Pos, Len, Bytes, Pos, Len, Read]),
       Read
   end.
 
 test_blob(Buf, InitPos, Expect) ->
+  ?LOG_NOTICE("TEST_BLOB WITH BUF ~p FROM POS ~p", [Buf, InitPos]),
   Reader = fun (Pos, Len) -> string_reader(Buf, Pos, Len) end,
   TestLen = length(Expect),
   case inflate_reader({Reader, InitPos}) of

@@ -28,46 +28,73 @@ deflate(Data) ->
   srcd_utils:iolist_to_list(IoList).
 
 inflate(IoDevice) ->
-  ?LOG_NOTICE("Inflate object"),
   inflate_reader({fun (_, Len) -> io:get_chars(IoDevice, "", Len) end, 0}).
 
 inflate_reader({Reader, Pos}) ->
-  % a zlib header is two bytes; by reading one byte here, we know that the zlib
-  % header has been read in full as inflate_reader/7 will also read one byte.
-  inflate_reader({Reader, Pos + 1}, Reader(Pos, 1)).
-inflate_reader(Reader, PreBuf) ->
-  %?LOG_NOTICE("Inflate with prebuf: ~p", [PreBuf]),
-  Z = zlib:open(),
-  ok = zlib:'inflateInit'(Z),
-  {ok, Len, Data, Compressed} = inflate_reader(Z, Reader, [], PreBuf,
-                                               [], length(PreBuf), 1),
-  zlib:close(Z),
-  {ok, Len, Data, Compressed}.
-inflate_reader(Z, {Reader, Pos}, InProc, InUnproc, Out, ReadCount0, N) ->
-  %?LOG_NOTICE("Round ~p, processed: ~p, unprocessed: ~p",
-  %            [N, length(InProc), length(InUnproc)]),
-  NewBuf = InUnproc ++ Reader(Pos, 1),
-  %?LOG_NOTICE("Inflate round with buf: ~p", [NewBuf]),
-  ReadCount = ReadCount0 + 1,
-  NewPos = Pos + 1,
-  case catch zlib:inflate(Z, NewBuf) of
-    {'EXIT', {data_error, _}} ->
-      inflate_reader(Z, {Reader, NewPos}, InProc,
-                     NewBuf, Out, ReadCount, N + 1);
-    {'EXIT', Err} -> ?LOG_NOTICE("unexpected exit inflate: ~p", [Err]),
-                     {ok, ReadCount0, Out, InProc ++ NewBuf};
-    [] ->
-      case catch zlib:'inflateEnd'(Z) of
-        {'EXIT', {data_error, _}} ->
-          inflate_reader({Reader, NewPos}, InProc ++ NewBuf);
-        ok ->
-          {ok, ReadCount, Out, InProc ++ NewBuf}
-      end;
-    New when is_list(New) ->
-      case catch zlib:'inflateEnd'(Z) of
-        {'EXIT', {data_error, _}} ->
-          inflate_reader({Reader, NewPos}, InProc ++ NewBuf);
-        ok -> {ok, ReadCount,
-               Out ++ srcd_utils:iolist_to_list(New), InProc ++ NewBuf}
-      end
+  ?LOG_NOTICE("INITIALIZE READER AT POS ~p", [Pos]),
+  Hdr = Reader(Pos, 2),
+  case flatez:in(list_to_binary(Hdr)) of
+    {ok, Decoded, _} -> {ok, 2, Decoded, Hdr};
+    {more, Len, Ctx} -> inflate_reader({Reader, Pos+2}, Len, Ctx, Hdr)
   end.
+inflate_reader({Reader, Pos}, Len, Ctx, Buf) ->
+  Add = Reader(Pos, Len),
+  Buf0 = Buf ++ Add,
+  ?LOG_NOTICE("Read pos: ~p~nInflate ctx: ~p~nByte: ~p", [Pos, Ctx, Add]),
+  case flatez:in(Ctx, list_to_binary(Add), []) of
+    {ok, Decoded, Ctx0} ->
+      {ok, Stats} = flatez:stats(Ctx0),
+      ReadCount = length(Buf0),
+      ?LOG_NOTICE("STATS = ~p~nVS:   ~p", [Stats, ReadCount]),
+      {ReadCount, ReadCount} = {ReadCount, proplists:get_value(read, Stats)},
+      {ok, ReadCount, Decoded, Buf0};
+    {more, MoreBytes, Ctx0} ->
+      {ok, Stats} = flatez:stats(Ctx0),
+      ReadCount = length(Buf0),
+      %?LOG_NOTICE("STATS = ~p~nVS:   ~p", [Stats, ReadCount]),
+      inflate_reader({Reader, Pos + Len}, MoreBytes, Ctx0, Buf0)
+  end.
+
+%inflate(IoDevice) ->
+%  inflate_reader({fun (_, Len) -> io:get_chars(IoDevice, "", Len) end, 0}).
+%
+%inflate_reader({Reader, Pos}) ->
+%  % a zlib header is two bytes; by reading one byte here, we know that the zlib
+%  % header has been read in full as inflate_reader/7 will also read one byte.
+%  inflate_reader({Reader, Pos + 1}, Reader(Pos, 1)).
+%inflate_reader(Reader, PreBuf) ->
+%  %?LOG_NOTICE("Inflate with prebuf: ~p", [PreBuf]),
+%  Z = zlib:open(),
+%  ok = zlib:'inflateInit'(Z),
+%  {ok, Len, Data, Compressed} = inflate_reader(Z, Reader, [], PreBuf,
+%                                               [], length(PreBuf), 1),
+%  zlib:close(Z),
+%  {ok, Len, Data, Compressed}.
+%inflate_reader(Z, {Reader, Pos}, InProc, InUnproc, Out, ReadCount0, N) ->
+%  %?LOG_NOTICE("Round ~p, processed: ~p, unprocessed: ~p",
+%  %            [N, length(InProc), length(InUnproc)]),
+%  NewBuf = InUnproc ++ Reader(Pos, 1),
+%  %?LOG_NOTICE("Inflate round with buf: ~p", [NewBuf]),
+%  ReadCount = ReadCount0 + 1,
+%  NewPos = Pos + 1,
+%  case catch zlib:inflate(Z, NewBuf) of
+%    {'EXIT', {data_error, _}} ->
+%      inflate_reader(Z, {Reader, NewPos}, InProc,
+%                     NewBuf, Out, ReadCount, N + 1);
+%    {'EXIT', Err} -> ?LOG_NOTICE("unexpected exit inflate: ~p", [Err]),
+%                     {ok, ReadCount0, Out, InProc ++ NewBuf};
+%    [] ->
+%      case catch zlib:'inflateEnd'(Z) of
+%        {'EXIT', {data_error, _}} ->
+%          inflate_reader({Reader, NewPos}, InProc ++ NewBuf);
+%        ok ->
+%          {ok, ReadCount, Out, InProc ++ NewBuf}
+%      end;
+%    New when is_list(New) ->
+%      case catch zlib:'inflateEnd'(Z) of
+%        {'EXIT', {data_error, _}} ->
+%          inflate_reader({Reader, NewPos}, InProc ++ NewBuf);
+%        ok -> {ok, ReadCount,
+%               Out ++ srcd_utils:iolist_to_list(New), InProc ++ NewBuf}
+%      end
+%  end.
