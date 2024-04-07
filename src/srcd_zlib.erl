@@ -28,7 +28,6 @@ deflate(Data) ->
   srcd_utils:iolist_to_list(IoList).
 
 inflate(IoDevice) ->
-  ?LOG_NOTICE("Inflate object"),
   inflate_reader({fun (_, Len) -> io:get_chars(IoDevice, "", Len) end, 0}).
 
 inflate_reader({Reader, Pos}) ->
