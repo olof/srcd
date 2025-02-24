@@ -65,7 +65,7 @@ route(de, State, Opts) -> deflate(State, Opts).
 inflate(#zlib{input= <<>>, state=data} = Ctx, _Opts) -> {more, 1, Ctx};
 inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} = Ctx, Opts) ->
   % parse code tree, parse compressed bytes
-  {Byte, Tail1} = read_bits(Enc, 8, [reverse_input_byte_order]),
+  {Byte, Tail1} = read_bits(Enc, 8, []),
   <<Bfinal:1, BtypeR:2, Bits:5/bits>> = Byte,
   Btype = flate_utils:reverse_int(BtypeR, 2),
 
