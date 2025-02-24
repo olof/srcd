@@ -62,8 +62,9 @@ in(Data) -> in(Data, []).
 route(in, State, Opts) -> inflate(State, Opts);
 route(de, State, Opts) -> deflate(State, Opts).
 
-inflate(#zlib{input= <<>>, state=data} = Ctx, _Opts) -> {more, 1, Ctx};
-inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} = Ctx, Opts) ->
+inflate(#zlib{state=data, input= <<>>} = Ctx, _Opts) -> {more, 1, Ctx};
+inflate(#zlib{state=finalize} = Ctx, Opts) -> finalize(Ctx, Opts);
+inflate(#zlib{state=data, input=Enc, output=Dec, read_count=Rc, write_count=Wc} = Ctx, Opts) ->
   % parse code tree, parse compressed bytes
   {Byte, Tail1} = read_bits(Enc, 8, []),
   <<Bfinal:1, BtypeR:2, Bits:5/bits>> = Byte,
@@ -76,20 +77,20 @@ inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} 
 
   case inflate_block(int_to_btype(Btype), Tail, Opts) of
     {ok, This, NewTail, ReadLen} ->
-      NewCtx = Ctx#zlib{
+      inflate(Ctx#zlib{
         input=NewTail,
+        state=case Bfinal of
+          0 -> data;
+          1 -> finalize
+        end,
         output=case Dec of
           undefined -> This;
           _ -> [This | Dec]
         end,
         write_count=(Wc + size(This)),
         read_count=(Rc + ReadLen + 1)
-      },
+      }, Opts);
 
-      case Bfinal of
-        0 -> inflate(NewCtx, Opts);
-        1 -> finalize(NewCtx, Opts)
-      end;
     {more, Missing} ->
       {more, Missing, Ctx}
   end.
