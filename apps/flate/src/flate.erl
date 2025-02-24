@@ -200,10 +200,7 @@ inflate_symbols(Huffman, Data, Symbols, BitCount) ->
 
     {ok, {Len, _, 256}, Tail} ->
       {ok, list_to_binary(lists:reverse(Symbols)), Tail,
-	     (BitCount + Len) div 8 + case BitCount + Len rem 8 of
-         0 -> 0;
-         _ -> 1
-       end};
+	     (BitCount + Len) div 8 + ceil((BitCount + Len) rem 8 / 8)};
 
     {ok, {Len, _Code, Symbol}, Tail} when Symbol < 256 ->
       inflate_symbols(Huffman, Tail, [Symbol | Symbols], BitCount + Len);
