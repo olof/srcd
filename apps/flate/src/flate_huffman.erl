@@ -1,4 +1,4 @@
-% ex:ts=2:sw=2:sts=2:et;foldmarker=-ifdef(TEST).,-endif.;foldmethod=marker
+% ex:ts=2:sw=2:sts=2:et:foldmarker=-ifdef(TEST).,-endif.:foldmethod=marker
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 
 -module(flate_huffman).
