@@ -43,11 +43,6 @@
                               {g, {4, 14}}, {h, {4, 15}}]).
 -endif.
 
-maxv(KV) -> maxv(KV, 0).
-maxv([{_, V}|T], Max) when V > Max -> maxv(T, V);
-maxv([{_, _}|T], Max) -> maxv(T, Max);
-maxv([], Max) -> Max.
-
 get_symbol(Codes, Data) -> get_symbol(Codes, {0, 0}, Data).
 get_symbol(Codes, {OldLen, Cand}, Data) ->
   Len = OldLen + 1,
@@ -156,8 +151,9 @@ get_symbols_abcdefgh_test_() -> [
 init(Lengths) ->
   Counts = counts(Lengths),
   ok = check(Counts),
-  {ok, Offsets} = offsets(lists:seq(1, maxv(Lengths)), Counts),
-  codes(lists:seq(0, maxv(Offsets)), Lengths, Offsets).
+  {ok, Offsets} = offsets(lists:seq(1, flate_utils:max_kv_value(Lengths, 0)),
+                          Counts),
+  codes(lists:seq(0, flate_utils:max_kv_value(Offsets, 0)), Lengths, Offsets).
 
 -ifdef(TEST).
 
@@ -227,7 +223,7 @@ offsets([Len | Lengths], Offsets, Counts) ->
 offsets_test_() -> [
   ?_assertEqual(
     Expected,
-    offsets(lists:seq(1, maxv(Lengths)), counts(Lengths))
+    offsets(lists:seq(1, flate_utils:max_kv_value(Lengths, 0)), counts(Lengths))
   ) || {Lengths, Expected} <- [
     {[], {ok, []}},
     %{flate:fixed(), {ok, this_is_wrong}},
@@ -282,7 +278,7 @@ codes([N|Tail], Lengths, Offsets, Codes) ->
 code_test_() -> [
   ?_assertEqual(
     ?TEST_ABCDEFGH_CODES,
-    codes(lists:seq(0, maxv(?TEST_ABCDEFGH_OFS)),
+    codes(lists:seq(0, flate_utils:max_kv_value(?TEST_ABCDEFGH_OFS, 0)),
           ?TEST_ABCDEFGH_INPUT,
           ?TEST_ABCDEFGH_OFS)
   )

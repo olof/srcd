@@ -2,7 +2,7 @@
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 
 -module(flate_utils).
--export([b2i/1, read_bits/2, read_bits/3, read_hook/2, reverse_int/2, reverse_byte/1, reverse_bits/1]).
+-export([b2i/1, max_kv_value/1, max_kv_value/2, read_bits/2, read_bits/3, read_hook/2, reverse_int/2, reverse_byte/1, reverse_bits/1]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -136,5 +136,26 @@ reverse_byte_test_() -> lists:concat([
       {<<75>>, <<210>>}
     ]
 ]).
+
+-endif.
+
+max_kv_value(KV) -> max_kv_value(KV, undefined).
+max_kv_value([{_, V}|T], undefined) -> max_kv_value(T, V);
+max_kv_value([{_, V}|T], Max) when V > Max -> max_kv_value(T, V);
+max_kv_value([{_, _}|T], Max) -> max_kv_value(T, Max);
+max_kv_value([], Max) -> Max.
+
+-ifdef(TEST).
+
+max_kv_value_test_() ->
+  [
+    ?_assertEqual(undefined, max_kv_value([])),
+    ?_assertEqual(1337, max_kv_value([], 1337)),
+    ?_assertEqual(1, max_kv_value([{a, 1}])),
+    ?_assertEqual(3, max_kv_value([{a, 1}, {b, 2}, {c, 3}])),
+    ?_assertEqual(3, max_kv_value([{a, 3}, {b, 2}, {c, 1}])),
+    ?_assertEqual(4, max_kv_value([{a, 1}, {b, 4}, {c, 3}])),
+    ?_assertEqual(4, max_kv_value([{a, -1}, {b, -5}, {c, 3}, {d, 4}, {e, 1}]))
+  ].
 
 -endif.
