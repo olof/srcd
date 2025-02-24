@@ -41,7 +41,7 @@
 
 -define(op(Name),
 Name(#zlib{op=Name} = State, Opts) -> route(Name, State, Opts);
-Name(#zlib{op=Op}, Opts) -> {badarg, op, Op};
+Name(#zlib{op=Op}, _Opts) -> {badarg, op, Op};
 Name(Data, Opts) -> Name(#zlib{op=Name, input=Data}, Opts)).
 
 de(Data) -> de(Data, []).
@@ -62,7 +62,7 @@ in(Data) -> in(Data, []).
 route(in, State, Opts) -> inflate(State, Opts);
 route(de, State, Opts) -> deflate(State, Opts).
 
-inflate(#zlib{input= <<>>, state=data} = Ctx, Opts) -> {more, 1, Ctx};
+inflate(#zlib{input= <<>>, state=data} = Ctx, _Opts) -> {more, 1, Ctx};
 inflate(#zlib{input=Enc, output=Dec, state=data, read_count=Rc, write_count=Wc} = Ctx, Opts) ->
   % parse code tree, parse compressed bytes
   {Byte, Tail1} = read_bits(Enc, 8, [reverse_input_byte_order]),
@@ -111,11 +111,12 @@ finalize(#zlib{input={_, Data}} = Ctx, Opts) ->
   % TODO If we have an incomplete byte, we just throw it away now. That
   %      may, or may not, be an ok thing to do.
   finalize(Ctx#zlib{input=Data}, Opts);
-finalize(#zlib{output=Out} = Ctx, Opts) ->
+finalize(#zlib{output=Out} = Ctx, _Opts) ->
   {ok, iolist_to_binary(lists:reverse(Out)),
    Ctx#zlib{state=finalized, output=undefined}}.
 
-inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) andalso size(Data) < 4 ->
+inflate_block(no_compression, {_, Data}, _Opts) when is_binary(Data)
+                                                andalso size(Data) < 4 ->
   {more, 4-size(Data)};
 inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) ->
   % NOTE: Uncompressed blocks, RFC 1951 section 3.2.1:
@@ -203,7 +204,7 @@ inflate_symbols(Huffman, Data, Symbols, BitCount) ->
          _ -> 1
        end};
 
-    {ok, {Len, Code, Symbol}, Tail} when Symbol < 256 ->
+    {ok, {Len, _Code, Symbol}, Tail} when Symbol < 256 ->
       inflate_symbols(Huffman, Tail, [Symbol | Symbols], BitCount + Len);
 
     {ok, {Len, _, Code}, Tail1} ->
