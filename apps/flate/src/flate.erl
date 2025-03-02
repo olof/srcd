@@ -72,14 +72,8 @@ inflate(#zlib{state=data, input= <<>>} = Ctx, _Opts) -> {more, 1, Ctx};
 inflate(#zlib{state=finalize} = Ctx, Opts) -> finalize(Ctx, Opts);
 inflate(#zlib{state=data, input=Enc, output=Dec, read_count=Rc, write_count=Wc} = Ctx, Opts) ->
   % parse code tree, parse compressed bytes
-  {Byte, Tail1} = flate_utils:read_bits(Enc, 8, []),
-  <<Bfinal:1, BtypeR:2, Bits:5/bits>> = Byte,
+  {<<Bfinal:1, BtypeR:2>>, Tail} = flate_utils:read_bits(Enc, 3, []),
   Btype = flate_utils:reverse_int(BtypeR, 2),
-
-  Tail = case Tail1 of
-    {B, Bin} -> {<<Bits/bits, B/bits>>, Bin};
-    Bin -> {Bits, Bin}
-  end,
 
   case inflate_block(int_to_block_type(Btype), Tail, Opts) of
     {ok, This, NewTail, ReadLen} ->
