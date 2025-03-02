@@ -289,6 +289,20 @@ int_to_btype(1) -> huffman_fixed;
 int_to_btype(2) -> huffman_dyn;
 int_to_btype(N) -> {invalid_zlib_btype, N}.
 
+code_len_orders() -> [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15].
+
+sort_code_len(Codes) when length(Codes) < 19 ->
+  sort_code_len(flate_utils:right_pad_list(Codes, 19, 0));
+sort_code_len(Codes) when length(Codes) < 20 ->
+  [V || {_, V} <- lists:sort(lists:zip(code_len_orders(), Codes))].
+
+-ifdef(TEST).
+sort_code_len_test_() -> [
+  ?_assertEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], sort_code_len([])),
+  ?_assertEqual([4, 18, 16, 14, 12, 10, 8, 6, 5, 7, 9, 11, 13, 15, 17, 19, 1, 2, 3], sort_code_len(lists:seq(1, 19)))
+].
+-endif.
+
 -ifdef(TEST).
 ?check_full_inflate(inflate_empty_uncompressed_test_,
                     <<1, 0, 0, 255, 255>>, <<>>).
