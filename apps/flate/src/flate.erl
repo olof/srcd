@@ -256,7 +256,7 @@ dynamic(Data) ->
     [{X, 8} || X <- lists:seq(280, 287)]
   ]).
 
-alphabet() ->
+fixed() ->
 % 0 - 15: Represent code lengths of 0 - 15
 %     16: Copy the previous code length 3 - 6 times.
 %         The next 2 bits indicate repeat length
@@ -268,14 +268,6 @@ alphabet() ->
 %         (3 bits of length)
 %     18: Repeat a code length of 0 for 11 - 138 times
 %         (7 bits of length)
-  lists:concat([
-    [{X, 8} || X <- lists:seq(0, 143)],
-    [{X, 9} || X <- lists:seq(144, 255)],
-    [{X, 7} || X <- lists:seq(256, 279)],
-    [{X, 8} || X <- lists:seq(280, 287)]
-  ]).
-
-fixed() ->
   % Literal value    Bits                 Codes
   % -------------------------------------------------------
   %       0 - 143     8         00110000 through  10111111   (48-191)
