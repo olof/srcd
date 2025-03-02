@@ -138,25 +138,7 @@ inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) ->
 inflate_block(huffman_fixed, {InitialBits, Data}, _Opts) ->
   inflate_symbols(flate_huffman:init(fixed()), {InitialBits, Data});
 
-inflate_block(huffman_dyn, Bin, _Opts)
-  when is_binary(Bin)
-  andalso size(Bin) < 2 ->
-    {more, 2-size(Bin)};
-inflate_block(huffman_dyn, {InitialBits, Bin}, _Opts)
-  when bit_size(InitialBits) < 6
-  andalso size(Bin) < 2 ->
-    {more, 2-size(Bin)};
-inflate_block(huffman_dyn, {InitialBits, <<>>}, _Opts)
-  when bit_size(InitialBits) < 14 ->
-    {more, 1};
-inflate_block(huffman_dyn, {Bits, Tail}, Opts) when bit_size(Bits) < 14 ->
-  Missing = ((14-bit_size(Bits)-1) div 8 + 1) * 8,
-  <<AddBits:Missing/bits, Tail1/binary>> = Tail,
-  NewBits = <<Bits/bits, AddBits/bits>>,
-  inflate_block(huffman_dyn, {NewBits, Tail1}, Opts);
-inflate_block(huffman_dyn, {Bits, Tail1}, _Opts) ->
-  <<HLIT:5, HDIST:5, HCLEN:4, InitialBits/bits>> = Bits,
-
+inflate_block(huffman_dyn, Data, Opts) ->
   % Yes, the dynamic Huffman codes and extra bits are stored in the same order
   % as the fixed Huffman codes. The tricky part is understanding how the
   % Huffman codes are transmitted in the deflate stream header for each block.
@@ -172,29 +154,47 @@ inflate_block(huffman_dyn, {Bits, Tail1}, _Opts) ->
   % value is pulled, and the LSB will be the last (i.e. least significant) bit
   % in that value. With that understanding the RFC is correct. –
   % mwfearnley (2017-2018)
+  case read_code_trees(Data, Opts) of
+    {more, _} = More -> More;
+    {ok, CodeAlphabet, Literals, Distances, Tail} ->
+      {ok, Huffman} = flate_huffman:init(dynamic(CodeAlphabet, Literals, Distances, Tail)),
+      case inflate_symbols(Huffman, Tail) of
+        {error, insufficient_data} -> {more, 1};
+        {ok, Codes, D} -> inflate_symbols(Codes, D)
+      end
+  end.
+
+read_code_trees(Bin, _Opts) when is_binary(Bin) andalso size(Bin) < 2 ->
+    {more, 2-size(Bin)};
+read_code_trees({Bits, Bin}, _) when bit_size(Bits) < 6 andalso size(Bin) < 2 ->
+    {more, 2-size(Bin)};
+read_code_trees({Bits, <<>>}, _Opts) when bit_size(Bits) < 14 ->
+    {more, 1};
+read_code_trees({Bits, Tail}, Opts) when bit_size(Bits) < 14 ->
+  Missing = ((14-bit_size(Bits)-1) div 8 + 1) * 8,
+  <<AddBits:Missing/bits, Tail1/binary>> = Tail,
+  NewBits = <<Bits/bits, AddBits/bits>>,
+  read_code_trees({NewBits, Tail1}, Opts);
+read_code_trees({Bits, Tail1}, _Opts) ->
+  <<HLIT:5, HDIST:5, HCLEN:4, InitialBits/bits>> = Bits,
 
   case read_codes(HCLEN, {InitialBits, Tail1}) of
     {error, insufficient_data} -> {more, 1};
     {CodeAlphabet, Tail} ->
-      % HLIT + 257 code lengths for the literal/length alphabet,
+      % HLIT + 257: code lengths for the literal/length alphabet,
       %  encoded using the code length Huffman code
 
-      % HDIST + 1 code lengths for the distance alphabet,
+      % HDIST + 1: code lengths for the distance alphabet,
       %    encoded using the code length Huffman code
 
-      % The actual compressed data of the block,
+      % Tail: The actual compressed data of the block,
       %    encoded using the literal/length and distance Huffman
       %    codes
 
-      % The literal/length symbol 256 (end of data),
+      % Tail': The literal/length symbol 256 (end of data),
       %    encoded using the literal/length Huffman code
 
-      % Turns out, i can't find implementation for flate_huffman:codetree... Fun!
-      {ok, Dynamic} = flate_huffman:init(dynamic(CodeAlphabet)),
-      case inflate_symbols(Dynamic, Tail) of
-        {error, insufficient_data} -> {more, 1};
-        {ok, Codes, D} -> inflate_symbols(Codes, D)
-      end
+      {ok, {CodeAlphabet, HLIT+257, HDIST+1, Tail}}
   end.
 
 read_codes(HCLEN, Data) ->
@@ -232,7 +232,8 @@ inflate_symbols(Huffman, Data, Symbols, BitCount) ->
 
 -ifdef(TEST).
 
-inflate_symbols_test_() -> lists:concat([
+inflate_fixed_symbols_test_() -> lists:concat([
+  % TODO missing tests for non-empty blobs
   [
     ?_assertEqual(Expected,
                   inflate_symbols(flate_huffman:init(flate:fixed()), In)) ||
@@ -246,19 +247,8 @@ inflate_symbols_test_() -> lists:concat([
 
 -endif.
 
-dynamic(Data) ->
-  % Literal value    Bits                 Codes
-  % -------------------------------------------------------
-  %       0 - 143     8         00110000 through  10111111   (48-191)
-  %     144 - 255     9        110010000 through 111111111  (400-511)
-  %     256 - 279     7          0000000 through   0010111    (0- 23)
-  %     280 - 287     8         11000000 through  11000111  (192-199)
-  lists:concat([
-    [{X, 8} || X <- lists:seq(0, 143)],
-    [{X, 9} || X <- lists:seq(144, 255)],
-    [{X, 7} || X <- lists:seq(256, 279)],
-    [{X, 8} || X <- lists:seq(280, 287)]
-  ]).
+dynamic(CodeAlphabet, Literals, Distances, Data) ->
+  lists:zip(lists:seq(0, length(CodeAlphabet)-1), CodeAlphabet) ++ [{l, -1}].
 
 fixed() ->
 % 0 - 15: Represent code lengths of 0 - 15
@@ -348,6 +338,10 @@ sort_code_len_test_() -> [
 ?check_full_inflate('inflate_?x1040_fixed_pigz_test_',
 		    <<179, 183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0>>,
                     list_to_binary(lists:duplicate(1040, "?"))).
+
+-include("bsd.hrl").
+?check_full_inflate('inflate_bsd_dynamic_zopfli_test_',
+		                ?BSD_LICENSE_DEFLATE, ?BSD_LICENSE_TEXT).
 
 test_inflate_steps() ->
   In = <<179, 183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0>>,
