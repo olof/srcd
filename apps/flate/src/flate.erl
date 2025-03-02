@@ -75,7 +75,7 @@ inflate(#zlib{state=data, input=Enc, output=Dec, read_count=Rc, write_count=Wc} 
     Bin -> {Bits, Bin}
   end,
 
-  case inflate_block(int_to_btype(Btype), Tail, Opts) of
+  case inflate_block(int_to_block_type(Btype), Tail, Opts) of
     {ok, This, NewTail, ReadLen} ->
       inflate(Ctx#zlib{
         input=NewTail,
@@ -281,10 +281,10 @@ fixed() ->
     [{X, 8} || X <- lists:seq(280, 287)]
   ]).
 
-int_to_btype(0) -> no_compression;
-int_to_btype(1) -> huffman_fixed;
-int_to_btype(2) -> huffman_dyn;
-int_to_btype(N) -> {invalid_zlib_btype, N}.
+int_to_block_type(0) -> no_compression;
+int_to_block_type(1) -> huffman_fixed;
+int_to_block_type(2) -> huffman_dyn;
+int_to_block_type(N) -> {invalid_zlib_block_type, N}.
 
 code_len_orders() -> [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15].
 
@@ -354,7 +354,7 @@ test_inflate_steps() ->
   <<Btail:5/bits, Btype:2, Bfinal:1, Tail0/binary>> = In,
 
   ?assertEqual(1, Bfinal),
-  ?assertEqual(huffman_fixed, int_to_btype(Btype)),
+  ?assertEqual(huffman_fixed, int_to_block_type(Btype)),
   ?assertEqual(<<22:5>>, Btail),
   ?assertEqual(<<13:5>>, flate_utils:reverse_byte(Btail)),
   ?assertEqual(<<183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0>>, Tail0),
