@@ -156,8 +156,6 @@ inflate_block(huffman_dyn, {Bits, Tail}, Opts) when bit_size(Bits) < 14 ->
   inflate_block(huffman_dyn, {NewBits, Tail1}, Opts);
 inflate_block(huffman_dyn, {Bits, Tail1}, _Opts) ->
   <<HLIT:5, HDIST:5, HCLEN:4, InitialBits/bits>> = Bits,
-  CodeLen = (HCLEN + 4) * 3,
-  TrailBitLen = abs(8 - CodeLen) rem 8,
 
   % Yes, the dynamic Huffman codes and extra bits are stored in the same order
   % as the fixed Huffman codes. The tricky part is understanding how the
@@ -175,7 +173,7 @@ inflate_block(huffman_dyn, {Bits, Tail1}, _Opts) ->
   % in that value. With that understanding the RFC is correct. –
   % mwfearnley (2017-2018)
 
-  case read_bits({InitialBits, Tail1}, CodeLen) of
+  case read_codes(HCLEN, {InitialBits, Tail1}) of
     {error, insufficient_data} -> {more, 1};
     {CodeAlphabet, Tail} ->
       % HLIT + 257 code lengths for the literal/length alphabet,
@@ -197,6 +195,13 @@ inflate_block(huffman_dyn, {Bits, Tail1}, _Opts) ->
         {error, insufficient_data} -> {more, 1};
         {ok, Codes, D} -> inflate_symbols(Codes, D)
       end
+  end.
+
+read_codes(HCLEN, Data) ->
+  CodeLen = (HCLEN + 4) * 3,
+  case flate_utils:read_bits(Data, CodeLen) of
+    {error, insufficient_data} -> {more, 1};
+    {CodeBlob, Tail} -> sort_code_len({[ Code || << Code:3/integer >> <= CodeBlob ], Tail})
   end.
 
 inflate_symbols(Huffman, Data) -> inflate_symbols(Huffman, Data, [], 0).
