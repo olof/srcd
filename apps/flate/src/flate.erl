@@ -2,14 +2,14 @@
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 
 -module(flate).
-% This module tries to implement RFC 1951, to be able to support
-% inflating compressed objects.
-
--export([in/1, in/2, in/3, de/1, tail/1, stats/1]).
-
--ifdef(TEST).
--export([fixed/0]).
--endif.
+% This module tries to implement RFC 1951, to be able to
+% support inflating compressed objects. Details of specific
+% algorithms are in other modules, like flate_huffman,
+% flate_lz77 and flate_adler32. This module instead deals
+% mostly with the block structure and details specific
+% to the DEFLATE format. It is the main entrypoint for
+% uncompressing such blobs. (See the flatez module for
+% instead dealing with zlib compressed blobs.)
 
 %%%% Inflating a compressed blob:
 % {more, Len0, Context2} = flate:in(Part1),
@@ -35,6 +35,12 @@
 %   {read, Read},
 %   {written, Written}
 % ] = flate:stats(Context).
+
+-export([in/1, in/2, in/3, de/1, tail/1, stats/1]).
+
+-ifdef(TEST).
+-export([fixed/0]).
+-endif.
 
 -include("record.hrl").
 -include("check.hrl").
