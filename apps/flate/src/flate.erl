@@ -100,8 +100,9 @@ deflate(#zlib{input=Input} = Ctx, Opts) ->
   ok = zlib:'deflateInit'(Z, default),
   [Output] = zlib:deflate(Z, Input, finish),
   ok = zlib:'deflateEnd'(Z),
-  {ok, Output,
-       finalize(Ctx#zlib{read_count=size(Input), write_count=size(Output)}, Opts)}.
+  {ok, Output, finalize(Ctx#zlib{read_count=size(Input),
+                                 write_count=size(Output)},
+                        Opts)}.
 
 stats(#zlib{read_count=R, write_count=W}) -> {ok, [{read, R}, {written, W}]}.
 
@@ -128,12 +129,15 @@ inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) ->
   % > LEN is the number of data bytes in the block.  NLEN is the
   % > one's complement of LEN.
   Nlen = 16#FFFF - Len,
+
   <<Decoded:Len/bytes, Tail/binary>> = Payload,
   flate_utils:read_hook(Opts, Decoded),
 
   {ok, Decoded, Tail, Len + 4};
+
 inflate_block(huffman_fixed, {InitialBits, Data}, _Opts) ->
   inflate_symbols(flate_huffman:init(fixed()), {InitialBits, Data});
+
 inflate_block(huffman_dyn, Bin, _Opts)
   when is_binary(Bin)
   andalso size(Bin) < 2 ->
@@ -164,7 +168,7 @@ inflate_block(huffman_dyn, {Bits, Tail1}, _Opts) ->
   % > Actually the RFC is wrong with that statement. And I got bitten by this. The
   % > extra bits must be read LSB first, like any other bit fields in the archive.
   %
-  % you pull the bits out one at a time, then yes, the LSB is the first
+  % If you pull the bits out one at a time, then yes, the LSB is the first
   % bit-sized value pulled (e.g. as above, for 14 you will get 0,1,1,1) - but
   % if you pull the needed bits all at once (e.g. 14 is 1110), then only one
   % value is pulled, and the LSB will be the last (i.e. least significant) bit
@@ -227,7 +231,6 @@ inflate_symbols_test_() -> lists:concat([
         {{<<0:7>>, <<>>}, {ok, <<>>, {<<>>, <<>>}, 1}},
         {{<<>>, <<0>>},   {ok, <<>>, {<<0:1>>, <<>>}, 1}},
         {<<0>>,           {ok, <<>>, {<<0:1>>, <<>>}, 1}}
-	% TODO missing tests for non-empty blobs
       ]
   ]
 ]).
@@ -266,7 +269,6 @@ alphabet() ->
     [{X, 7} || X <- lists:seq(256, 279)],
     [{X, 8} || X <- lists:seq(280, 287)]
   ]).
-
 
 fixed() ->
   % Literal value    Bits                 Codes
@@ -332,10 +334,9 @@ int_to_btype(N) -> {invalid_zlib_btype, N}.
 		    <<179, 183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0>>,
                     list_to_binary(lists:duplicate(1040, "?"))).
 
-
 test_inflate_steps() ->
   In = <<179, 183, 31, 5, 163, 96, 20, 140, 2, 8, 0, 0>>,
-  Expect = list_to_binary(lists:duplicate(1040, "?")),
+  _Expect = list_to_binary(lists:duplicate(1040, "?")),
   Fixed = flate_huffman:init(fixed()),
 
   % parse code tree, parse compressed bytes
