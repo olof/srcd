@@ -2,7 +2,7 @@
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 
 -module(flate_utils).
--export([b2i/1, max_kv_value/1, max_kv_value/2, read_bits/2, read_bits/3, read_hook/2, reverse_int/2, reverse_byte/1, reverse_bits/1]).
+-export([b2i/1, max_kv_value/1, max_kv_value/2, read_bits/2, read_bits/3, read_hook/2, reverse_int/2, reverse_byte/1, reverse_bits/1, right_pad_list/3]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -158,4 +158,20 @@ max_kv_value_test_() ->
     ?_assertEqual(4, max_kv_value([{a, -1}, {b, -5}, {c, 3}, {d, 4}, {e, 1}]))
   ].
 
+-endif.
+
+right_pad_list(List, Len, Pad) when length(List) < Len ->
+  lists:concat([List, [Pad || _ <- lists:seq(1, Len-length(List))]]);
+right_pad_list(List, _Len, _Pad) ->
+  List.
+
+-ifdef(TEST).
+right_pad_list_test_() -> [
+  ?_assertEqual([1, 0, 0], right_pad_list([1], 3, 0)),
+  ?_assertEqual([1, 2, 0], right_pad_list([1, 2], 3, 0)),
+  ?_assertEqual([1, 2, 3], right_pad_list([1, 2, 3], 3, 0)),
+  ?_assertEqual([1, 2, 3, 4], right_pad_list([1, 2, 3, 4], 3, 0)),
+  ?_assertEqual([hack, undefined, undefined], right_pad_list([hack], 3, undefined)),
+  ?_assertEqual([], right_pad_list([], 0, 0))
+].
 -endif.
