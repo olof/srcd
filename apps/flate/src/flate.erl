@@ -66,7 +66,7 @@ inflate(#zlib{state=data, input= <<>>} = Ctx, _Opts) -> {more, 1, Ctx};
 inflate(#zlib{state=finalize} = Ctx, Opts) -> finalize(Ctx, Opts);
 inflate(#zlib{state=data, input=Enc, output=Dec, read_count=Rc, write_count=Wc} = Ctx, Opts) ->
   % parse code tree, parse compressed bytes
-  {Byte, Tail1} = read_bits(Enc, 8, []),
+  {Byte, Tail1} = flate_utils:read_bits(Enc, 8, []),
   <<Bfinal:1, BtypeR:2, Bits:5/bits>> = Byte,
   Btype = flate_utils:reverse_int(BtypeR, 2),
 
@@ -123,12 +123,14 @@ inflate_block(no_compression, {_, Data}, Opts) when is_binary(Data) ->
   % NOTE: Uncompressed blocks, RFC 1951 section 3.2.1:
   % > Any bits of input up to the next byte boundary are ignored.
   <<Len:16, Nlen:16, Payload/binary>> = Data,
-  read_hook(Opts, <<Len:16, Nlen:16>>),
+  flate_utils:read_hook(Opts, <<Len:16, Nlen:16>>),
+
   % > LEN is the number of data bytes in the block.  NLEN is the
   % > one's complement of LEN.
   Nlen = 16#FFFF - Len,
   <<Decoded:Len/bytes, Tail/binary>> = Payload,
-  read_hook(Opts, Decoded),
+  flate_utils:read_hook(Opts, Decoded),
+
   {ok, Decoded, Tail, Len + 4};
 inflate_block(huffman_fixed, {InitialBits, Data}, _Opts) ->
   inflate_symbols(flate_huffman:init(fixed()), {InitialBits, Data});
@@ -400,7 +402,3 @@ fixed_huffman_test_() ->
   ].
 
 -endif.
-
-read_bits(Data, Count) -> flate_utils:read_bits(Data, Count).
-read_bits(Data, Count, Opts) -> flate_utils:read_bits(Data, Count, Opts).
-read_hook(Opts, Data) -> flate_utils:read_hook(Opts, Data).
