@@ -217,6 +217,11 @@ inflate_symbols(Huffman, Data, Symbols, BitCount) ->
       inflate_symbols(Huffman, Tail, [Symbol | Symbols], BitCount + Len);
 
     {ok, {Len, _, Code}, Tail1} ->
+      % FIXME: we can refer to distances going back across blocks,
+      %        which we don't pass as it is right now. What if we
+      %        defer expansion to later, and just leave an lz
+      %        instruction in its place? Or just pass the extra
+      %        context (i.e. results from previous blocks).
       case flate_lz77:decode(Symbols, Code, Tail1) of
         {more, N} -> {more, N};
         {error, Reason} -> error({error, Reason});
