@@ -210,19 +210,18 @@ inflate_symbols(Huffman, Data, Symbols, BitCount) ->
     {error, insufficient_data} -> {more, 1};
 
     {ok, {Len, _, 256}, Tail} ->
-      {ok, list_to_binary(lists:reverse(Symbols)), Tail,
+      % FIXME: we can refer to distances going back across blocks,
+      %        but we don't resolve the lz77 instructions with that
+      %        context, only the current block. We should defer the
+      %        resolution to when we have access to all past blocks.
+      {ok, list_to_binary(flate_lz77:resolve_all(lists:reverse(Symbols))), Tail,
 	     (BitCount + Len) div 8 + ceil((BitCount + Len) rem 8 / 8)};
 
     {ok, {Len, _Code, Symbol}, Tail} when Symbol < 256 ->
       inflate_symbols(Huffman, Tail, [Symbol | Symbols], BitCount + Len);
 
     {ok, {Len, _, Code}, Tail1} ->
-      % FIXME: we can refer to distances going back across blocks,
-      %        which we don't pass as it is right now. What if we
-      %        defer expansion to later, and just leave an lz
-      %        instruction in its place? Or just pass the extra
-      %        context (i.e. results from previous blocks).
-      case flate_lz77:decode(Symbols, Code, Tail1) of
+      case flate_lz77:lazy_decode(Code, Tail1) of
         {more, N} -> {more, N};
         {error, Reason} -> error({error, Reason});
         {ok, Output, Tail, Read} ->
