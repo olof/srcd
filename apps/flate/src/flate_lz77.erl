@@ -2,7 +2,7 @@
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 
 -module(flate_lz77).
--export([decode/3]).
+-export([decode/3, lazy_decode/2, resolve/2]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -113,14 +113,24 @@ decode_distance(Data) ->
   end.
 
 decode(Symbols, Code, Data) ->
-  case decode_distance_pair(Code, Data) of
+  case lazy_decode(Code, Data) of
     {more, N} -> {more, N};
-    {Length, Dist, Tail, Read} ->
-      case clone_output(lists:flatten(Symbols), Dist, Length) of
+    {ok, Instr, Tail, Read} ->
+      case resolve(Symbols, Instr) of
         {error, Reason} -> {error, Reason};
         Output -> {ok, Output, Tail, Read}
       end
   end.
+
+lazy_decode(Code, Data) ->
+  case decode_distance_pair(Code, Data) of
+    {more, N} -> {more, N};
+    {Length, Dist, Tail, Read} -> {ok, {lz77, Dist, Length}, Tail, Read}
+  end.
+
+resolve(Symbols, {lz77, Dist, Length}) ->
+  clone_output(lists:flatten(Symbols), Dist, Length);
+resolve(_, Sym) -> Sym.
 
 clone_output(Symbols, Dist, _) when Dist > length(Symbols) ->
   {error, {lz77_distance_too_far_back, Dist, length(Symbols)}};
