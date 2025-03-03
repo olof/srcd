@@ -2,7 +2,7 @@
 % -*- tab-width: 2; c-basic-offset: 2; indent-tabs-mode: nil -*-
 
 -module(flate_lz77).
--export([decode/3, lazy_decode/2, resolve/2]).
+-export([decode/3, lazy_decode/2, resolve/2, resolve_all/1]).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -128,9 +128,27 @@ lazy_decode(Code, Data) ->
     {Length, Dist, Tail, Read} -> {ok, {lz77, Dist, Length}, Tail, Read}
   end.
 
+resolve_all(Syms) -> resolve_all(Syms, []).
+resolve_all([], Output) -> Output;
+resolve_all([Sym|Symbols], Output) ->
+  case resolve(Output, Sym) of
+    {error, Reason} -> {error, Reason};
+    Resolved -> resolve_all(Symbols, Output ++ Resolved)
+  end.
+
+-ifdef(TEST).
+resolve_all_test_() -> [
+  ?_assertEqual([], resolve_all([])),
+  ?_assertEqual([1], resolve_all([1])),
+  ?_assertEqual([1, 2, 3, 2], resolve_all([1, 2, 3, {lz77, 2, 1}])),
+  ?_assertEqual([1, 2, 3, 2, 3], resolve_all([1, 2, 3, {lz77, 2, 2}])),
+  ?_assertEqual([1, 2, 3, 2, 3, 2], resolve_all([1, 2, 3, {lz77, 2, 3}]))
+].
+-endif.
+
 resolve(Symbols, {lz77, Dist, Length}) ->
   clone_output(lists:flatten(Symbols), Dist, Length);
-resolve(_, Sym) -> Sym.
+resolve(_, Sym) -> [Sym].
 
 clone_output(Symbols, Dist, _) when Dist > length(Symbols) ->
   {error, {lz77_distance_too_far_back, Dist, length(Symbols)}};
