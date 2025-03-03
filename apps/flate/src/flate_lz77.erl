@@ -123,7 +123,7 @@ decode(Symbols, Code, Data) ->
   end.
 
 clone_output(Symbols, Dist, _) when Dist > length(Symbols) ->
-  {error, {deflate_distance_too_far_back, Dist, length(Symbols)}};
+  {error, {lz77_distance_too_far_back, Dist, length(Symbols)}};
 clone_output(Symbols, Dist, Length) ->
   {_, Buf} = lists:split(length(Symbols)-Dist, Symbols),
   clone_output(Buf, Length, [], []).
